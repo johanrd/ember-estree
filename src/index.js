@@ -8,8 +8,16 @@
  *    - the placeholder should be the same dimensions as the template region
  * 3. parse the string/contents as js/ts to generate an ESTree
  * 4. parse each template region to generate an AST from that
- * 5. convert the AST from `@glimmer/syntax` to ESTree 
+ * 5. convert the AST from `@glimmer/syntax` to ESTree
  *    - NOTE: it may already be ESTree
  * 6. splice in the template ESTrees into the JS/TS ESTree
  * 7. Done
  */
+
+/**
+ * Docs for dependencies:
+ * - https://github.com/embroider-build/content-tag/
+ */
+
+import { Preprocessor } from "content-tag";
+let p = new Preprocessor();
