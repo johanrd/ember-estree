@@ -20,4 +20,10 @@
  */
 
 import { Preprocessor } from "content-tag";
+import babelParser from "@babel/parser";
+
 let p = new Preprocessor();
+
+export function toTree(source, options = {}) {
+  return babelParser.parse(source, options);
+}

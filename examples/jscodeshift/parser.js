@@ -1,6 +1,6 @@
 import { toTree } from "ember-estree";
 
-export default function emberParser(options = {}) {
+export function emberParser(options = {}) {
   return {
     parse(code) {
       return toTree(code, {

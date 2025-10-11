@@ -4,7 +4,11 @@
   "description": "ESTree generator for gjs and gts file used by ember",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
   "scripts": {
+    "test": "vitest run",
     "format": "prettier . --write",
     "lint:format": "prettier . --check"
   },
