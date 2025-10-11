@@ -1,6 +1,6 @@
 {
   "name": "ember-estree",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "ESTree generator for gjs and gts file used by ember",
   "type": "module",
   "main": "index.js",
