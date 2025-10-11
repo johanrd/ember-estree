@@ -1,0 +1,26 @@
+{
+  "name": "ember-estree",
+  "version": "1.0.0",
+  "description": "ESTree generator for gjs and gts file used by ember",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.18.2",
+  "dependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/parser": "^7.28.4",
+    "@babel/plugin-transform-typescript": "^7.28.0",
+    "@glimmer/syntax": "^0.95.0",
+    "content-tag": "^4.0.0",
+    "content-tag-utils": "^0.4.1",
+    "decorator-transforms": "^2.3.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
