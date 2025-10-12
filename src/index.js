@@ -27,11 +27,15 @@
 
 import { Preprocessor } from "content-tag";
 import babelParser from "@babel/parser";
+import templateRecast from 'ember-template-recast';
 import { Transformer } from "content-tag-utils";
 
 import { tsOptions } from "./options.js";
 
 let p = new Preprocessor();
+const SPACE = ' ';
+const CLOSING = '</template>';
+const CLOSING_LENGTH = CLOSING.length;
 
 /**
  * @typedef {import('@babel/parser').ParseResult} Result
@@ -63,13 +67,46 @@ export function toTree(source, options = {}) {
  * @param {string} source
  */
 function prepare(source) {
+  let arraySource = Array.from(source);
   let t = new Transformer(source);
 
   console.log(t);
 
+  const data = [];
+
+  /**
+   * The opening and closing <template> tags 
+   * may not contain unicode (atm).
+   */
+  for (let { startRange, endRange } of t.parseResults) {
+    for (let i = startRange.start; i<startRange.end; i++) {
+      arraySource[i] = SPACE;
+    }
+    for (let i = endRange.start; i<endRange.end; i++) {
+      arraySource[i] = SPACE;
+    }
+  }
+  console.log(t);
+
+  // TODO: add start/end tags to this callback
   t.each((contents, coordinates) => {
-    console.log({ contents, coordinates });
+    let templateAST = templateRecast.parse(contents);
+
+    data.push({
+      ast: templateAST,
+      contents,
+      coordinates,
+    });
+
+    for (let i = coordinates.start; i < coordinates.end; i++) {
+      arraySource[i] = SPACE;
+    }
   });
 
-  return source;
+  let code = arraySource.join('');
+
+  return {
+    code,
+    data,
+  }
 }
