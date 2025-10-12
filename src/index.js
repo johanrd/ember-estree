@@ -25,14 +25,13 @@
  * - https://github.com/embroider-build/content-tag/
  */
 
-import { Preprocessor } from "content-tag";
 import babelParser from "@babel/parser";
 import templateRecast from 'ember-template-recast';
 import { Transformer } from "content-tag-utils";
+import { walk } from 'estree-walker';
 
 import { tsOptions } from "./options.js";
 
-let p = new Preprocessor();
 const SPACE = ' ';
 const CLOSING = '</template>';
 const CLOSING_LENGTH = CLOSING.length;
@@ -45,14 +44,34 @@ const CLOSING_LENGTH = CLOSING.length;
  * @return {Result}
  */
 export function toTree(source, options = {}) {
-  let preprocessed = prepare(source);
-
-  let outerAST = babelParser.parse(preprocessed, {
+  let t = new Transformer(source);
+  let js = t.toString({ placeholders: true });
+  
+  let outerAST = babelParser.parse(js, {
     ...tsOptions,
     ...options,
   });
 
+  let parseResults = t.parseResults;
+
+  walk(outerAST, {
+    enter(node) {
+      if (isExpressionPlaceholder(node)) {
+        let parseResult = parseResults.find(r => {
+          // WARNING: these are byte ranges
+          return node.start === r.range.start && node.end === r.range.end;
+        });
+
+        let content = t.stringUtils.originalContentOf(parseResult);
+        let templateAST = templateRecast.parse(content);
+      
+        this.replace(node, templateAST);
+      }
+    }
+  })
+
   let ast = outerAST;
+
 
   return ast;
 }
@@ -63,50 +82,8 @@ export function toTree(source, options = {}) {
 //
 //////////////////////////////////////////////////
 
-/**
- * @param {string} source
- */
-function prepare(source) {
-  let arraySource = Array.from(source);
-  let t = new Transformer(source);
+function isExpressionPlaceholder(node) {
+  if (node.type !== 'CallExpression') return;
 
-  console.log(t);
-
-  const data = [];
-
-  /**
-   * The opening and closing <template> tags 
-   * may not contain unicode (atm).
-   */
-  for (let { startRange, endRange } of t.parseResults) {
-    for (let i = startRange.start; i<startRange.end; i++) {
-      arraySource[i] = SPACE;
-    }
-    for (let i = endRange.start; i<endRange.end; i++) {
-      arraySource[i] = SPACE;
-    }
-  }
-  console.log(t);
-
-  // TODO: add start/end tags to this callback
-  t.each((contents, coordinates) => {
-    let templateAST = templateRecast.parse(contents);
-
-    data.push({
-      ast: templateAST,
-      contents,
-      coordinates,
-    });
-
-    for (let i = coordinates.start; i < coordinates.end; i++) {
-      arraySource[i] = SPACE;
-    }
-  });
-
-  let code = arraySource.join('');
-
-  return {
-    code,
-    data,
-  }
+  return node.callee.name === 'TEMPLATE_TEMPLATE';
 }

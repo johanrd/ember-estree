@@ -20,12 +20,10 @@
     "@babel/core": "^7.28.4",
     "@babel/parser": "^7.28.4",
     "@babel/plugin-transform-typescript": "^7.28.0",
-    "@glimmer/env": "^0.1.7",
-    "@glimmer/syntax": "^0.95.0",
-    "content-tag": "^4.0.0",
-    "content-tag-utils": "^0.4.1",
+    "content-tag-utils": "^0.5.1",
     "decorator-transforms": "^2.3.0",
-    "ember-template-recast": "^6.1.5"
+    "ember-template-recast": "^6.1.5",
+    "estree-walker": "^3.0.3"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
