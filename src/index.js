@@ -27,6 +27,7 @@
 
 import { Preprocessor } from "content-tag";
 import babelParser from "@babel/parser";
+import { Transformer } from "content-tag-utils";
 
 import { tsOptions } from "./options.js";
 
@@ -40,10 +41,16 @@ let p = new Preprocessor();
  * @return {Result}
  */
 export function toTree(source, options = {}) {
-  return babelParser.parse(source, {
+  let preprocessed = prepare(source);
+
+  let outerAST = babelParser.parse(preprocessed, {
     ...tsOptions,
     ...options,
   });
+
+  let ast = outerAST;
+
+  return ast;
 }
 
 //////////////////////////////////////////////////
@@ -56,5 +63,13 @@ export function toTree(source, options = {}) {
  * @param {string} source
  */
 function prepare(source) {
-  let templateInfo = p.parse(source);
+  let t = new Transformer(source);
+
+  console.log(t);
+
+  t.each((contents, coordinates) => {
+    console.log({ contents, coordinates });
+  });
+
+  return source;
 }
