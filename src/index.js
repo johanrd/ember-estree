@@ -64,8 +64,10 @@ export function toTree(source, options = {}) {
 
         let content = t.stringUtils.originalContentOf(parseResult);
         let templateAST = templateRecast.parse(content);
+
+        let templateESTree = toTemplateESTree(templateAST);
       
-        this.replace(node, templateAST);
+        this.replace(templateESTree);
       }
     }
   })
@@ -86,4 +88,8 @@ function isExpressionPlaceholder(node) {
   if (node.type !== 'CallExpression') return;
 
   return node.callee.name === 'TEMPLATE_TEMPLATE';
+}
+
+function toTemplateESTree(templateAST) {
+  return templateAST;
 }
