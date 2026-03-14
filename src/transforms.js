@@ -118,7 +118,10 @@ export function buildGlimmerVisitorKeys() {
  * @returns {object} The transformed AST
  */
 export function processGlimmerTemplate(templateAST, { contentOffset, templateRange, source }) {
-  const contentStr = source.substring(contentOffset, templateRange[1]);
+  // The Glimmer AST locs are relative to the inner template content only
+  const closingTagLen = "</template>".length;
+  const contentEnd = templateRange[1] - closingTagLen;
+  const contentStr = source.substring(contentOffset, contentEnd);
   const contentDoc = new DocumentLines(contentStr);
   const sourceDoc = new DocumentLines(source);
 
@@ -141,11 +144,16 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
     const loc = n.loc.toJSON ? n.loc.toJSON() : n.loc;
 
     // Fix PathExpression head
-    if (n.type === "PathExpression" && n.head) {
-      const headLoc = n.head.loc?.toJSON ? n.head.loc.toJSON() : n.head.loc;
-      if (headLoc) {
-        n.head.range = toFileRange(headLoc);
-        n.head.loc = toFileLoc(n.head.range);
+    if (n.type === "PathExpression") {
+      const head = n.head;
+      if (head && head.loc) {
+        const headLoc = head.loc.toJSON ? head.loc.toJSON() : head.loc;
+        if (headLoc && headLoc.start) {
+          head.range = toFileRange(headLoc);
+          head.start = head.range[0];
+          head.end = head.range[1];
+          head.loc = toFileLoc(head.range);
+        }
       }
     }
 
@@ -158,25 +166,21 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
     // Add parts and name to ElementNode
     if (n.type === "ElementNode") {
       n.name = n.tag;
-      const head = n.path?.head;
-      if (head) {
-        const headLoc = head.loc?.toJSON ? head.loc.toJSON() : head.loc;
-        const range = headLoc ? toFileRange(headLoc) : n.range;
-        n.parts = [
-          {
-            ...head,
-            name: head.original,
-            parent: n,
-            type: "GlimmerElementNodePart",
-            range,
-            start: range[0],
-            end: range[1],
-            loc: toFileLoc(range),
-          },
-        ];
-      } else {
-        n.parts = [];
-      }
+      // Compute the tag name range: starts 1 char after element start (<), length = tag.length
+      const tagStart = n.range[0] + 1; // skip "<"
+      const tagEnd = tagStart + n.tag.length;
+      const tagRange = [tagStart, tagEnd];
+      n.parts = [
+        {
+          original: n.tag,
+          name: n.tag,
+          type: "GlimmerElementNodePart",
+          range: tagRange,
+          start: tagRange[0],
+          end: tagRange[1],
+          loc: toFileLoc(tagRange),
+        },
+      ];
     }
 
     // Handle blockParams
@@ -188,7 +192,6 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
           ...p,
           type: "BlockParam",
           name: p.original,
-          parent: n,
           range,
           start: range[0],
           end: range[1],
