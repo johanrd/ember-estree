@@ -210,19 +210,16 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
       ];
     }
 
-    // Handle blockParams
+    // Handle blockParams — create virtual nodes from the blockParams string array
     if ("blockParams" in n && Array.isArray(n.blockParams)) {
-      n.blockParamNodes = (n.params || []).map((p) => {
-        const paramLoc = p.loc?.toJSON ? p.loc.toJSON() : p.loc;
-        const range = paramLoc ? toFileRange(paramLoc) : n.range;
+      n.blockParamNodes = n.blockParams.map((name) => {
         return {
-          ...p,
-          type: "BlockParam",
-          name: p.original,
-          range,
-          start: range[0],
-          end: range[1],
-          loc: toFileLoc(range),
+          type: "GlimmerBlockParam",
+          name,
+          range: [...n.range],
+          start: n.range[0],
+          end: n.range[1],
+          loc: toFileLoc(n.range),
         };
       });
     }
