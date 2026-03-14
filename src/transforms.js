@@ -89,13 +89,40 @@ function removeFromParent(nodes) {
 }
 
 /**
+ * Glimmer AST visitor keys — defines which properties contain child nodes.
+ * Defined explicitly because @glimmer/syntax no longer exports visitorKeys.
+ */
+const GLIMMER_VISITOR_KEYS = {
+  Template: ["body"],
+  Block: ["body"],
+  MustacheStatement: ["path", "params", "hash"],
+  BlockStatement: ["path", "params", "hash", "program", "inverse"],
+  ElementModifierStatement: ["path", "params", "hash"],
+  CommentStatement: [],
+  MustacheCommentStatement: [],
+  ElementNode: ["children", "attributes", "modifiers", "comments"],
+  AttrNode: ["value"],
+  TextNode: [],
+  ConcatStatement: ["parts"],
+  SubExpression: ["path", "params", "hash"],
+  PathExpression: [],
+  StringLiteral: [],
+  BooleanLiteral: [],
+  NumberLiteral: [],
+  NullLiteral: [],
+  UndefinedLiteral: [],
+  Hash: ["pairs"],
+  HashPair: ["value"],
+};
+
+/**
  * Build the Glimmer visitor keys map with "Glimmer" prefix.
  */
 let _cachedGlimmerVisitorKeys = null;
 export function buildGlimmerVisitorKeys() {
   if (_cachedGlimmerVisitorKeys) return _cachedGlimmerVisitorKeys;
   const keys = {};
-  for (const [k, v] of Object.entries(glimmer.visitorKeys)) {
+  for (const [k, v] of Object.entries(GLIMMER_VISITOR_KEYS)) {
     keys[`Glimmer${k}`] = [...v];
   }
   if (!keys.GlimmerElementNode.includes("blockParamNodes")) {
