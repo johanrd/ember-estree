@@ -1,0 +1,18 @@
+{
+  "name": "zmod-example",
+  "version": "1.0.0",
+  "description": "Example usage of ember-estree with zmod",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "ember-estree": "workspace:*",
+    "vitest": "^3.2.4",
+    "zmod": "^0.3.1"
+  },
+  "packageManager": "pnpm@10.18.2"
+}

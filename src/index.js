@@ -26,15 +26,12 @@
  */
 
 import babelParser from "@babel/parser";
-import templateRecast from 'ember-template-recast';
+import templateRecast from "ember-template-recast";
 import { Transformer } from "content-tag-utils";
-import { walk } from 'estree-walker';
+import { walk } from "estree-walker";
 
 import { tsOptions } from "./options.js";
-
-const SPACE = ' ';
-const CLOSING = '</template>';
-const CLOSING_LENGTH = CLOSING.length;
+export { print } from "./print.js";
 
 /**
  * @typedef {import('@babel/parser').ParseResult} Result
@@ -46,7 +43,7 @@ const CLOSING_LENGTH = CLOSING.length;
 export function toTree(source, options = {}) {
   let t = new Transformer(source);
   let js = t.toString({ placeholders: true });
-  
+
   let outerAST = babelParser.parse(js, {
     ...tsOptions,
     ...options,
@@ -57,7 +54,7 @@ export function toTree(source, options = {}) {
   walk(outerAST, {
     enter(node) {
       if (isExpressionPlaceholder(node)) {
-        let parseResult = parseResults.find(r => {
+        let parseResult = parseResults.find((r) => {
           // WARNING: these are byte ranges
           return node.start === r.range.start && node.end === r.range.end;
         });
@@ -66,14 +63,27 @@ export function toTree(source, options = {}) {
         let templateAST = templateRecast.parse(content);
 
         let templateESTree = toTemplateESTree(templateAST);
-      
+
         this.replace(templateESTree);
       }
-    }
-  })
+    },
+  });
 
   let ast = outerAST;
 
+  return ast;
+}
+
+/**
+ * Parse Ember .gjs/.gts source code into an ESTree-compatible AST
+ * with embedded Glimmer template nodes.
+ *
+ * @param {string} source - The source code to parse
+ * @param {object} [options] - Parse options
+ * @return {object} The ESTree-compatible AST
+ */
+export function parse(source, options = {}) {
+  let ast = toTree(source, options);
 
   return ast;
 }
@@ -85,9 +95,9 @@ export function toTree(source, options = {}) {
 //////////////////////////////////////////////////
 
 function isExpressionPlaceholder(node) {
-  if (node.type !== 'CallExpression') return;
+  if (node.type !== "CallExpression") return;
 
-  return node.callee.name === 'TEMPLATE_TEMPLATE';
+  return node.callee.name === "TEMPLATE_TEMPLATE";
 }
 
 function toTemplateESTree(templateAST) {

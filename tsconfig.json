@@ -1,5 +1,5 @@
 {
-  "extends": "@tsconfig/node-lts"
+  "extends": "@tsconfig/node-lts",
   "compilerOptions": {
     "allowJs": true
   }

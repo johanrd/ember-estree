@@ -3,20 +3,22 @@
   "version": "0.0.0",
   "description": "ESTree generator for gjs and gts file used by ember",
   "keywords": [],
+  "license": "ISC",
+  "author": "",
   "repository": {
     "type": "git",
     "url": "git@github.com:NullVoxPopuli/ember-estree.git"
   },
-  "license": "ISC",
-  "author": "",
   "type": "module",
+  "main": "index.js",
   "exports": {
     ".": "./src/index.js"
   },
-  "main": "index.js",
   "scripts": {
-    "format": "prettier . --write",
-    "lint:format": "prettier . --check",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint && pnpm format:check",
+    "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
   },
   "dependencies": {
@@ -30,8 +32,8 @@
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
-    "prettier": "^3.6.2",
-    "prettier-plugin-ember-template-tag": "^2.1.0",
+    "oxfmt": "^0.40.0",
+    "oxlint": "^1.55.0",
     "release-plan": "^0.17.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
