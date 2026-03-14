@@ -79,13 +79,13 @@ describe("parse", () => {
     const source = `const Greeting = <template><h1>Hello</h1></template>;`;
     const ast = parse(source);
 
-    const template = findNode(ast, "Template");
+    const template = findNode(ast, "GlimmerTemplate");
     expect(template).toBeTruthy();
 
-    const element = findNode(ast, "ElementNode");
+    const element = findNode(ast, "GlimmerElementNode");
     expect(element).toBeTruthy();
 
-    const elements = findAllNodes(ast, "ElementNode");
+    const elements = findAllNodes(ast, "GlimmerElementNode");
     const h1 = elements.find((e) => e.tag === "h1");
     expect(h1).toBeTruthy();
     expect(h1.tag).toBe("h1");
@@ -95,7 +95,7 @@ describe("parse", () => {
     const source = `const x = <template><div>{{@name}}</div></template>;`;
     const ast = parse(source);
 
-    const mustache = findNode(ast, "MustacheStatement");
+    const mustache = findNode(ast, "GlimmerMustacheStatement");
     expect(mustache).toBeTruthy();
   });
 });

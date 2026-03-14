@@ -31,6 +31,7 @@ import { Transformer } from "content-tag-utils";
 import { walk } from "estree-walker";
 
 import { tsOptions } from "./options.js";
+import { processGlimmerTemplate } from "./transforms.js";
 
 /**
  * @typedef {import('@babel/parser').ParseResult} Result
@@ -61,7 +62,14 @@ export function toTree(source, options = {}) {
         let content = t.stringUtils.originalContentOf(parseResult);
         let templateAST = templateRecast.parse(content);
 
-        let templateESTree = toTemplateESTree(templateAST);
+        let contentOffset = parseResult.contentRange.start;
+        let templateRange = [parseResult.range.start, parseResult.range.end];
+
+        let templateESTree = processGlimmerTemplate(templateAST, {
+          contentOffset,
+          templateRange,
+          source,
+        });
 
         this.replace(templateESTree);
       }
@@ -97,8 +105,4 @@ function isExpressionPlaceholder(node) {
   if (node.type !== "CallExpression") return;
 
   return node.callee.name === "TEMPLATE_TEMPLATE";
-}
-
-function toTemplateESTree(templateAST) {
-  return templateAST;
 }

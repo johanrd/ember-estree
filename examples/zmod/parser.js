@@ -45,25 +45,25 @@ function walkForTemplates(node, lineOffsets, contentOffset, visited) {
 
   // Glimmer node types from ember-template-recast
   const glimmerTypes = [
-    "Template",
-    "ElementNode",
-    "TextNode",
-    "MustacheStatement",
-    "BlockStatement",
-    "SubExpression",
-    "PathExpression",
-    "StringLiteral",
-    "BooleanLiteral",
-    "NumberLiteral",
-    "NullLiteral",
-    "UndefinedLiteral",
-    "Hash",
-    "HashPair",
-    "AttrNode",
-    "ConcatStatement",
-    "CommentStatement",
-    "MustacheCommentStatement",
-    "ElementModifierStatement",
+    "GlimmerTemplate",
+    "GlimmerElementNode",
+    "GlimmerTextNode",
+    "GlimmerMustacheStatement",
+    "GlimmerBlockStatement",
+    "GlimmerSubExpression",
+    "GlimmerPathExpression",
+    "GlimmerStringLiteral",
+    "GlimmerBooleanLiteral",
+    "GlimmerNumberLiteral",
+    "GlimmerNullLiteral",
+    "GlimmerUndefinedLiteral",
+    "GlimmerHash",
+    "GlimmerHashPair",
+    "GlimmerAttrNode",
+    "GlimmerConcatStatement",
+    "GlimmerCommentStatement",
+    "GlimmerMustacheCommentStatement",
+    "GlimmerElementModifierStatement",
   ];
 
   if (node.type && glimmerTypes.includes(node.type) && node.loc) {
@@ -103,7 +103,7 @@ function walkForTemplates(node, lineOffsets, contentOffset, visited) {
  * const j = z.withParser(emberParser);
  * const root = j(gjsSource);
  *
- * root.find("ElementNode", { tag: "OldComponent" })
+ * root.find("GlimmerElementNode", { tag: "OldComponent" })
  *     .replaceWith("<NewComponent />");
  *
  * console.log(root.toSource());

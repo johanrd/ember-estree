@@ -67,7 +67,7 @@ const Greeting = <template>
     const ast = parse(source);
     expect(ast.type).toBe("File");
 
-    const template = findNode(ast, "Template");
+    const template = findNode(ast, "GlimmerTemplate");
     expect(template).toBeTruthy();
   });
 

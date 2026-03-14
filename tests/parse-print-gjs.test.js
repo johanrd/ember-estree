@@ -14,10 +14,10 @@ describe("parse + print (.gjs)", () => {
     const source = `const x = <template><div class="main">content</div></template>;`;
     const ast = parse(source);
 
-    const templates = findAllNodes(ast, "Template");
+    const templates = findAllNodes(ast, "GlimmerTemplate");
     expect(templates.length).toBeGreaterThan(0);
 
-    const elements = findAllNodes(ast, "ElementNode");
+    const elements = findAllNodes(ast, "GlimmerElementNode");
     const div = elements.find((e) => e.tag === "div");
     expect(div).toBeTruthy();
   });
@@ -49,7 +49,7 @@ const B = <template><h2>B</h2></template>;
 `;
     const ast = parse(source);
 
-    const templates = findAllNodes(ast, "Template");
+    const templates = findAllNodes(ast, "GlimmerTemplate");
     expect(templates.length).toBe(2);
   });
 
@@ -67,7 +67,7 @@ const Comp = <template>Hello</template>;
     const source = `const x = <template>Hello world</template>;`;
     const ast = parse(source);
 
-    const textNodes = findAllNodes(ast, "TextNode");
+    const textNodes = findAllNodes(ast, "GlimmerTextNode");
     const hello = textNodes.find((t) => t.chars && t.chars.includes("Hello"));
     expect(hello).toBeTruthy();
   });
@@ -76,7 +76,7 @@ const Comp = <template>Hello</template>;
     const source = `const x = <template><div class="main"></div></template>;`;
     const ast = parse(source);
 
-    const attrNodes = findAllNodes(ast, "AttrNode");
+    const attrNodes = findAllNodes(ast, "GlimmerAttrNode");
     expect(attrNodes.length).toBeGreaterThan(0);
     expect(attrNodes[0].name).toBe("class");
   });

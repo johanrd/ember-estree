@@ -78,8 +78,8 @@ function migrateInputToNamedBlocks(path, source) {
   let newParts = [];
 
   for (const child of node.children) {
-    if (child.type === "TextNode" && child.chars.trim() === "") continue;
-    if (child.type !== "ElementNode" || !child.tag.startsWith(yieldedPrefix + ".")) continue;
+    if (child.type === "GlimmerTextNode" && child.chars.trim() === "") continue;
+    if (child.type !== "GlimmerElementNode" || !child.tag.startsWith(yieldedPrefix + ".")) continue;
 
     const subName = child.tag.slice(yieldedPrefix.length + 1);
 
@@ -109,7 +109,7 @@ describe("Component migration: contextual components → named blocks (zmod)", (
     const j = z.withParser(emberParser);
     const root = j(INPUT_SOURCE);
 
-    const inputElements = root.find("ElementNode", { tag: "Input" });
+    const inputElements = root.find("GlimmerElementNode", { tag: "Input" });
     expect(inputElements.length).toBe(1);
 
     inputElements.forEach((path) => {
@@ -122,16 +122,16 @@ describe("Component migration: contextual components → named blocks (zmod)", (
     const root = j(INPUT_SOURCE);
 
     // Query each sub-component by tag prefix
-    expect(root.find("ElementNode", { tag: "foo.Label" }).length).toBe(1);
-    expect(root.find("ElementNode", { tag: "foo.Field" }).length).toBe(1);
-    expect(root.find("ElementNode", { tag: "foo.Error" }).length).toBe(1);
+    expect(root.find("GlimmerElementNode", { tag: "foo.Label" }).length).toBe(1);
+    expect(root.find("GlimmerElementNode", { tag: "foo.Field" }).length).toBe(1);
+    expect(root.find("GlimmerElementNode", { tag: "foo.Error" }).length).toBe(1);
   });
 
   it("migrates <Input> to named blocks via replaceWith()", () => {
     const j = z.withParser(emberParser);
     const root = j(INPUT_SOURCE);
 
-    root.find("ElementNode", { tag: "Input" }).replaceWith((path) => {
+    root.find("GlimmerElementNode", { tag: "Input" }).replaceWith((path) => {
       return migrateInputToNamedBlocks(path, INPUT_SOURCE);
     });
 
@@ -146,7 +146,7 @@ describe("Component migration: contextual components → named blocks (zmod)", (
     const transform = ({ source }, { z: j }) => {
       const root = j(source);
 
-      root.find("ElementNode", { tag: "Input" }).replaceWith((path) => {
+      root.find("GlimmerElementNode", { tag: "Input" }).replaceWith((path) => {
         return migrateInputToNamedBlocks(path, source);
       });
 
