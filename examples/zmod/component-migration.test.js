@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { toTree } from "ember-estree";
+import { z } from "zmod";
+import { emberParser } from "./parser.js";
 
 /**
  * Example: Migrating a component API from yielded contextual components
- * to named blocks.
+ * to named blocks, using zmod with the ember-estree parser adapter.
  *
  * Before:
  *   <Input as |foo|>
@@ -56,184 +57,105 @@ export const Foo = <template>
 `;
 
 /**
- * Walk the AST to find all nodes of a given type.
- */
-function findAllNodes(node, type, visited = new Set()) {
-  if (!node || typeof node !== "object" || visited.has(node)) return [];
-  visited.add(node);
-  let results = [];
-  if (node.type === type) results.push(node);
-  for (const key of Object.keys(node)) {
-    if (key === "loc" || key === "parent") continue;
-    const val = node[key];
-    if (Array.isArray(val)) {
-      for (const item of val) results.push(...findAllNodes(item, type, visited));
-    } else if (val && typeof val === "object") {
-      results.push(...findAllNodes(val, type, visited));
-    }
-  }
-  return results;
-}
-
-/**
- * Transform the <Input> component from contextual components to named blocks.
+ * Migrate an <Input> element from contextual components to named blocks.
  *
- * This function demonstrates the codemod logic:
- * 1. Find the <Input> element with block params
- * 2. Map its yielded children to named blocks
- * 3. Produce the new AST structure
+ * Given a zmod NodePath for an ElementNode with block params (e.g.
+ * `<Input as |foo|>`), this function:
+ * 1. Reads the yielded prefix from blockParams
+ * 2. Maps `<foo.Label>` + `<foo.Field>` → `<:field>` named block
+ * 3. Maps `<foo.Error>` → `<:error>` named block (preserving children)
+ * 4. Returns the replacement string for zmod's span-based patching
  */
-function migrateInputComponent(inputElement) {
-  // inputElement is an ElementNode with tag "Input" and blockParams ["foo"]
-  if (!inputElement.blockParams || inputElement.blockParams.length === 0) {
-    return inputElement;
+function migrateInputToNamedBlocks(path, source) {
+  const node = path.node;
+
+  if (!node.blockParams || node.blockParams.length === 0) {
+    return null; // nothing to migrate
   }
-  let yieldedPrefix = inputElement.blockParams[0]; // "foo"
 
-  let newChildren = [];
+  const yieldedPrefix = node.blockParams[0]; // "foo"
+  let labelText = "";
+  let newParts = [];
 
-  for (let child of inputElement.children) {
-    // Skip whitespace TextNodes
+  for (const child of node.children) {
     if (child.type === "TextNode" && child.chars.trim() === "") continue;
+    if (child.type !== "ElementNode" || !child.tag.startsWith(yieldedPrefix + ".")) continue;
 
-    if (child.type === "ElementNode" && child.tag.startsWith(yieldedPrefix + ".")) {
-      let subName = child.tag.slice(yieldedPrefix.length + 1); // "Label", "Field", "Error"
+    const subName = child.tag.slice(yieldedPrefix.length + 1);
 
-      if (subName === "Label") {
-        // <foo.Label @text="hello" /> → part of <:field>
-        let textAttr = child.attributes.find((a) => a.name === "@text");
-        let labelText = textAttr?.value?.chars ?? "";
-
-        // Store for combining with Field
-        newChildren.push({
-          _type: "label-info",
-          text: labelText,
-        });
-      } else if (subName === "Field") {
-        // <foo.Field /> → <:field as |label|>
-        // Combine with any preceding Label info
-        let labelInfo = newChildren.find((c) => c._type === "label-info");
-        let labelText = labelInfo ? labelInfo.text : "";
-
-        // Remove the label-info placeholder
-        newChildren = newChildren.filter((c) => c._type !== "label-info");
-
-        newChildren.push({
-          type: "ElementNode",
-          tag: ":field",
-          selfClosing: false,
-          attributes: [],
-          blockParams: ["label"],
-          modifiers: [],
-          comments: [],
-          children: [
-            {
-              type: "ElementNode",
-              tag: "label",
-              selfClosing: false,
-              attributes: [],
-              blockParams: [],
-              modifiers: [],
-              comments: [],
-              children: [{ type: "TextNode", chars: labelText }],
-            },
-          ],
-        });
-      } else if (subName === "Error") {
-        // <foo.Error as |error|> ... </foo.Error> → <:error as |error|> ... </:error>
-        newChildren.push({
-          type: "ElementNode",
-          tag: ":error",
-          selfClosing: false,
-          attributes: [],
-          blockParams: child.blockParams, // preserve ["error"]
-          modifiers: [],
-          comments: [],
-          children: child.children.filter((c) => !(c.type === "TextNode" && c.chars.trim() === "")),
-        });
-      }
+    if (subName === "Label") {
+      // Extract @text attribute value for combining with Field
+      const textAttr = child.attributes.find((a) => a.name === "@text");
+      labelText = textAttr?.value?.chars ?? "";
+    } else if (subName === "Field") {
+      // Combine Label text + Field into a <:field> named block
+      newParts.push(`<:field as |label|>\n      <label>${labelText}</label>\n    </:field>`);
+    } else if (subName === "Error") {
+      // Preserve inner content from the original source using spans
+      const innerStart = child.children[0]?.start;
+      const innerEnd = child.children[child.children.length - 1]?.end;
+      const innerContent =
+        innerStart != null && innerEnd != null ? source.substring(innerStart, innerEnd).trim() : "";
+      const blockParams = child.blockParams.length ? ` as |${child.blockParams.join(" ")}|` : "";
+      newParts.push(`<:error${blockParams}>\n      ${innerContent}\n    </:error>`);
     }
   }
 
-  return {
-    type: "ElementNode",
-    tag: "Input",
-    selfClosing: false,
-    attributes: [],
-    blockParams: [], // No more block params
-    modifiers: [],
-    comments: [],
-    children: newChildren,
-  };
+  return `<Input>\n    ${newParts.join("\n    ")}\n  </Input>`;
 }
 
-describe("Component migration: contextual components → named blocks", () => {
-  it("both input and output are valid parseable gjs", () => {
-    let inputAST = toTree(INPUT_SOURCE);
-    expect(inputAST.type).toBe("File");
+describe("Component migration: contextual components → named blocks (zmod)", () => {
+  it("finds the <Input> component with block params via zmod find()", () => {
+    const j = z.withParser(emberParser);
+    const root = j(INPUT_SOURCE);
 
-    let outputAST = toTree(EXPECTED_OUTPUT);
-    expect(outputAST.type).toBe("File");
+    const inputElements = root.find("ElementNode", { tag: "Input" });
+    expect(inputElements.length).toBe(1);
+
+    inputElements.forEach((path) => {
+      expect(path.node.blockParams).toEqual(["foo"]);
+    });
   });
 
-  it("identifies the <Input> component with block params in the AST", () => {
-    let ast = toTree(INPUT_SOURCE);
-    let elements = findAllNodes(ast, "ElementNode");
+  it("finds all yielded child elements", () => {
+    const j = z.withParser(emberParser);
+    const root = j(INPUT_SOURCE);
 
-    let inputEl = elements.find((e) => e.tag === "Input");
-    expect(inputEl).toBeTruthy();
-    expect(inputEl.blockParams).toEqual(["foo"]);
-
-    // The yielded children
-    let childTags = inputEl.children.filter((c) => c.type === "ElementNode").map((c) => c.tag);
-
-    expect(childTags).toContain("foo.Label");
-    expect(childTags).toContain("foo.Field");
-    expect(childTags).toContain("foo.Error");
+    // Query each sub-component by tag prefix
+    expect(root.find("ElementNode", { tag: "foo.Label" }).length).toBe(1);
+    expect(root.find("ElementNode", { tag: "foo.Field" }).length).toBe(1);
+    expect(root.find("ElementNode", { tag: "foo.Error" }).length).toBe(1);
   });
 
-  it("migrates <Input> from contextual components to named blocks", () => {
-    let ast = toTree(INPUT_SOURCE);
-    let elements = findAllNodes(ast, "ElementNode");
+  it("migrates <Input> to named blocks via replaceWith()", () => {
+    const j = z.withParser(emberParser);
+    const root = j(INPUT_SOURCE);
 
-    let inputEl = elements.find((e) => e.tag === "Input");
-    let migrated = migrateInputComponent(inputEl);
+    root.find("ElementNode", { tag: "Input" }).replaceWith((path) => {
+      return migrateInputToNamedBlocks(path, INPUT_SOURCE);
+    });
 
-    // The migrated node should have no block params
-    expect(migrated.blockParams).toEqual([]);
-    expect(migrated.tag).toBe("Input");
+    const output = root.toSource();
 
-    // Should have :field and :error named blocks
-    let childTags = migrated.children.filter((c) => c.type === "ElementNode").map((c) => c.tag);
-    expect(childTags).toContain(":field");
-    expect(childTags).toContain(":error");
-
-    // :field should have a <label> child with the text
-    let fieldBlock = migrated.children.find((c) => c.tag === ":field");
-    expect(fieldBlock.blockParams).toEqual(["label"]);
-    expect(fieldBlock.children[0].tag).toBe("label");
-    expect(fieldBlock.children[0].children[0].chars).toBe("hello");
-
-    // :error should preserve the original children and block params
-    let errorBlock = migrated.children.find((c) => c.tag === ":error");
-    expect(errorBlock.blockParams).toEqual(["error"]);
-    let preEl = errorBlock.children.find((c) => c.type === "ElementNode" && c.tag === "pre");
-    expect(preEl).toBeTruthy();
+    // Verify the output matches the expected migration
+    expect(output).toBe(EXPECTED_OUTPUT);
   });
 
-  it("prints the migrated AST back to Glimmer template syntax", () => {
-    let ast = toTree(INPUT_SOURCE);
-    let elements = findAllNodes(ast, "ElementNode");
+  it("works as a reusable zmod transform", () => {
+    // This shows the zmod Transform pattern from the README
+    const transform = ({ source }, { z: j }) => {
+      const root = j(source);
 
-    let inputEl = elements.find((e) => e.tag === "Input");
-    let migrated = migrateInputComponent(inputEl);
+      root.find("ElementNode", { tag: "Input" }).replaceWith((path) => {
+        return migrateInputToNamedBlocks(path, source);
+      });
 
-    // Use the print function to serialize the migrated node
-    // Note: print expects GlimmerElementNode types for full fidelity,
-    // but we can verify the structure is correct
-    expect(migrated.tag).toBe("Input");
-    expect(migrated.children.length).toBe(2);
-    expect(migrated.children[0].tag).toBe(":field");
-    expect(migrated.children[1].tag).toBe(":error");
+      return root.toSource();
+    };
+
+    const j = z.withParser(emberParser);
+    const result = transform({ source: INPUT_SOURCE, path: "test.gjs" }, { z: j });
+
+    expect(result).toBe(EXPECTED_OUTPUT);
   });
 });
