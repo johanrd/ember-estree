@@ -25,6 +25,7 @@
     "@babel/core": "^7.28.4",
     "@babel/parser": "^7.28.4",
     "@babel/plugin-transform-typescript": "^7.28.0",
+    "@glimmer/syntax": "^0.84.3",
     "content-tag-utils": "^0.5.1",
     "decorator-transforms": "^2.3.0",
     "ember-template-recast": "^6.1.5",
