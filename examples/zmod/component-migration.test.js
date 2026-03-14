@@ -85,6 +85,9 @@ function findAllNodes(node, type, visited = new Set()) {
  */
 function migrateInputComponent(inputElement) {
   // inputElement is an ElementNode with tag "Input" and blockParams ["foo"]
+  if (!inputElement.blockParams || inputElement.blockParams.length === 0) {
+    return inputElement;
+  }
   let yieldedPrefix = inputElement.blockParams[0]; // "foo"
 
   let newChildren = [];
@@ -99,7 +102,7 @@ function migrateInputComponent(inputElement) {
       if (subName === "Label") {
         // <foo.Label @text="hello" /> → part of <:field>
         let textAttr = child.attributes.find((a) => a.name === "@text");
-        let labelText = textAttr ? textAttr.value.chars : "";
+        let labelText = textAttr?.value?.chars ?? "";
 
         // Store for combining with Field
         newChildren.push({
