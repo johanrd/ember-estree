@@ -17,6 +17,9 @@
     "type": "git",
     "url": "git@github.com:NullVoxPopuli/ember-estree.git"
   },
+  "files": [
+    "src"
+  ],
   "type": "module",
   "main": "src/index.js",
   "exports": {
