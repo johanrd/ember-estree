@@ -11,6 +11,29 @@
 import { parse, buildGlimmerVisitorKeys } from "ember-estree";
 
 /**
+ * Recursively add `range: [start, end]` to every AST node that has
+ * `start`/`end` but no `range`. ESLint requires range arrays on all nodes.
+ */
+function addRanges(node, visited = new Set()) {
+  if (!node || typeof node !== "object" || visited.has(node)) return;
+  visited.add(node);
+
+  if (node.type && typeof node.start === "number" && typeof node.end === "number" && !node.range) {
+    node.range = [node.start, node.end];
+  }
+
+  for (const key of Object.keys(node)) {
+    if (key === "loc" || key === "parent" || key === "tokens" || key === "comments") continue;
+    const val = node[key];
+    if (Array.isArray(val)) {
+      for (const item of val) addRanges(item, visited);
+    } else if (val && typeof val === "object") {
+      addRanges(val, visited);
+    }
+  }
+}
+
+/**
  * Merge the Glimmer-prefixed visitor keys with a base set.
  * In a full implementation, you'd merge with @typescript-eslint/visitor-keys
  * or the babel parser's visitor keys.
@@ -35,9 +58,22 @@ export function parseForESLint(code, options = {}) {
   // ESLint expects a Program node as the root.
   const program = ast.program;
 
+  // ESLint requires `range: [start, end]` on all AST nodes.
+  // Babel only sets `start`/`end`. Walk the tree to add ranges.
+  addRanges(program);
+
   // Ensure required ESLint properties exist
-  program.tokens = program.tokens || ast.tokens || [];
-  program.comments = program.comments || ast.comments || [];
+  program.tokens = (program.tokens || ast.tokens || []).map((t) => ({
+    ...t,
+    // ESLint requires range arrays on tokens
+    range: t.range || [t.start, t.end],
+    // ESLint expects token.type to be a string, not an object
+    type: typeof t.type === "string" ? t.type : t.type?.label || "Punctuator",
+  }));
+  program.comments = (program.comments || ast.comments || []).map((c) => ({
+    ...c,
+    range: c.range || [c.start, c.end],
+  }));
   program.range = program.range || [program.start, program.end];
   program.loc = program.loc || {
     start: { line: 1, column: 0 },

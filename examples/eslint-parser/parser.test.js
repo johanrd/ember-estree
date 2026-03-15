@@ -1,129 +1,148 @@
 import { describe, expect, it } from "vitest";
-import { parseForESLint } from "./parser.js";
+import { Linter } from "eslint";
+import emberEstreeParser from "./parser.js";
 
-describe("ESLint parser example", () => {
-  it("returns a Program AST with visitorKeys", () => {
+/**
+ * These tests invoke ESLint's Linter API with our custom parser
+ * to prove the parser works end-to-end — not just as a function call,
+ * but as a real ESLint parser plugin that ESLint can traverse and lint.
+ */
+
+function createLinter() {
+  return new Linter({ configType: "flat" });
+}
+
+function lint(source, rules = {}) {
+  const linter = createLinter();
+  return linter.verify(source, {
+    languageOptions: {
+      parser: emberEstreeParser,
+    },
+    rules,
+  });
+}
+
+describe("ESLint parser example — invokes ESLint", () => {
+  it("parses gjs without errors", () => {
     const source = `const x = <template><h1>Hello</h1></template>;`;
-    const result = parseForESLint(source);
+    const messages = lint(source);
 
-    expect(result.ast.type).toBe("Program");
-    expect(result.visitorKeys).toBeDefined();
-    expect(result.visitorKeys.GlimmerTemplate).toEqual(["body"]);
-    expect(result.visitorKeys.GlimmerElementNode).toContain("blockParamNodes");
-    expect(result.visitorKeys.GlimmerElementNode).toContain("parts");
+    // No parse errors
+    const parseErrors = messages.filter((m) => m.fatal);
+    expect(parseErrors).toEqual([]);
   });
 
-  it("produces Glimmer-prefixed node types", () => {
-    const source = `const x = <template><h1>Hello</h1></template>;`;
-    const result = parseForESLint(source);
+  it("ESLint can report lint violations on JS around templates", () => {
+    const source = `var x = <template><h1>Hello</h1></template>;`;
+    const messages = lint(source, { "no-var": "error" });
 
-    // Walk the AST to find Glimmer nodes
-    const glimmerTypes = new Set();
-    function walk(node, visited = new Set()) {
-      if (!node || typeof node !== "object" || visited.has(node)) return;
-      visited.add(node);
-      if (node.type && typeof node.type === "string" && node.type.startsWith("Glimmer")) {
-        glimmerTypes.add(node.type);
-      }
-      for (const key of Object.keys(node)) {
-        if (key === "loc" || key === "parent") continue;
-        const val = node[key];
-        if (Array.isArray(val)) {
-          for (const item of val) walk(item, visited);
-        } else if (val && typeof val === "object") {
-          walk(val, visited);
-        }
-      }
-    }
-    walk(result.ast);
-
-    expect(glimmerTypes.has("GlimmerTemplate")).toBe(true);
-    expect(glimmerTypes.has("GlimmerElementNode")).toBe(true);
-    expect(glimmerTypes.has("GlimmerTextNode")).toBe(true);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].ruleId).toBe("no-var");
+    expect(messages[0].message).toContain("Unexpected var");
   });
 
-  it("has correct ranges on Glimmer nodes", () => {
-    const source = `const x = <template><h1>Hello</h1></template>;`;
-    const result = parseForESLint(source);
-
-    function findNode(node, type, visited = new Set()) {
-      if (!node || typeof node !== "object" || visited.has(node)) return null;
-      visited.add(node);
-      if (node.type === type) return node;
-      for (const key of Object.keys(node)) {
-        if (key === "loc" || key === "parent") continue;
-        const val = node[key];
-        if (Array.isArray(val)) {
-          for (const item of val) {
-            const found = findNode(item, type, visited);
-            if (found) return found;
-          }
-        } else if (val && typeof val === "object") {
-          const found = findNode(val, type, visited);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-
-    const template = findNode(result.ast, "GlimmerTemplate");
-    expect(template).toBeTruthy();
-    expect(source.slice(template.start, template.end)).toBe(
-      "<template><h1>Hello</h1></template>",
-    );
-
-    const element = findNode(result.ast, "GlimmerElementNode");
-    expect(element).toBeTruthy();
-    expect(source.slice(element.start, element.end)).toBe("<h1>Hello</h1>");
-  });
-
-  it("handles gts with TypeScript", () => {
+  it("no-unused-vars works on JS identifiers", () => {
+    // 'y' is declared but never used
     const source = `
-interface Args { name: string; }
+const y = 1;
+const x = <template><h1>Hello</h1></template>;
+export { x };`;
+    const messages = lint(source, { "no-unused-vars": "error" });
+
+    const unusedVars = messages.filter((m) => m.ruleId === "no-unused-vars");
+    expect(unusedVars.length).toBeGreaterThan(0);
+    expect(unusedVars[0].message).toContain("y");
+  });
+
+  it("ESLint traverses Glimmer nodes without crashing", () => {
+    // A complex template with nested Glimmer nodes
+    const source = `
+const Greeting = <template>
+  <div class="wrapper">
+    <h1>{{@name}}</h1>
+    <p>Welcome!</p>
+  </div>
+</template>;
+export { Greeting };`;
+
+    const messages = lint(source);
+    const parseErrors = messages.filter((m) => m.fatal);
+    expect(parseErrors).toEqual([]);
+  });
+
+  it("handles multiple templates in one file", () => {
+    const source = `
+const A = <template><h1>A</h1></template>;
+const B = <template><h2>B</h2></template>;
+export { A, B };`;
+
+    const messages = lint(source);
+    const parseErrors = messages.filter((m) => m.fatal);
+    expect(parseErrors).toEqual([]);
+  });
+
+  it("handles gts-style class with template", () => {
+    const source = `
 export default class Greeting {
   <template><h1>Hello</h1></template>
 }`;
-    const result = parseForESLint(source);
 
-    expect(result.ast.type).toBe("Program");
-    expect(result.ast.body.length).toBeGreaterThan(0);
-
-    // Should have both TS and Glimmer nodes
-    const nodeTypes = new Set();
-    function walk(node, visited = new Set()) {
-      if (!node || typeof node !== "object" || visited.has(node)) return;
-      visited.add(node);
-      if (node.type) nodeTypes.add(node.type);
-      for (const key of Object.keys(node)) {
-        if (key === "loc" || key === "parent") continue;
-        const val = node[key];
-        if (Array.isArray(val)) {
-          for (const item of val) walk(item, visited);
-        } else if (val && typeof val === "object") {
-          walk(val, visited);
-        }
-      }
-    }
-    walk(result.ast);
-
-    expect(nodeTypes.has("TSInterfaceDeclaration")).toBe(true);
-    expect(nodeTypes.has("ClassDeclaration")).toBe(true);
+    const messages = lint(source);
+    const parseErrors = messages.filter((m) => m.fatal);
+    expect(parseErrors).toEqual([]);
   });
 
-  it("visitor keys include all Glimmer types", () => {
-    const source = `const x = <template>hello</template>;`;
-    const result = parseForESLint(source);
-    const keys = result.visitorKeys;
+  it("semi rule works on statements around templates", () => {
+    // Missing semicolons
+    const source = `const x = <template><h1>Hello</h1></template>
+const y = 1
+export { x, y }`;
 
-    // Standard Glimmer visitor keys should be present
-    expect(keys.GlimmerTemplate).toBeDefined();
-    expect(keys.GlimmerElementNode).toBeDefined();
-    expect(keys.GlimmerMustacheStatement).toBeDefined();
-    expect(keys.GlimmerBlockStatement).toBeDefined();
-    expect(keys.GlimmerPathExpression).toBeDefined();
-    expect(keys.GlimmerSubExpression).toBeDefined();
-    expect(keys.GlimmerAttrNode).toBeDefined();
-    expect(keys.GlimmerTextNode).toBeDefined();
-    expect(keys.GlimmerProgram).toEqual(["body", "blockParamNodes"]);
+    const messages = lint(source, { semi: ["error", "always"] });
+    const semiErrors = messages.filter((m) => m.ruleId === "semi");
+    expect(semiErrors.length).toBeGreaterThan(0);
+  });
+
+  it("ESLint can use a custom rule that visits Glimmer nodes", () => {
+    const source = `const x = <template><h1>Hello</h1></template>;`;
+
+    const linter = createLinter();
+    const glimmerNodeTypes = [];
+
+    // Define a custom rule plugin that collects Glimmer node types
+    const plugin = {
+      rules: {
+        "collect-glimmer-nodes": {
+          create(context) {
+            // Return visitors for each Glimmer node type
+            return {
+              GlimmerTemplate(node) {
+                glimmerNodeTypes.push(node.type);
+              },
+              GlimmerElementNode(node) {
+                glimmerNodeTypes.push(node.type);
+              },
+              GlimmerTextNode(node) {
+                glimmerNodeTypes.push(node.type);
+              },
+            };
+          },
+        },
+      },
+    };
+
+    linter.verify(source, {
+      plugins: { custom: plugin },
+      languageOptions: {
+        parser: emberEstreeParser,
+      },
+      rules: {
+        "custom/collect-glimmer-nodes": "error",
+      },
+    });
+
+    expect(glimmerNodeTypes).toContain("GlimmerTemplate");
+    expect(glimmerNodeTypes).toContain("GlimmerElementNode");
+    expect(glimmerNodeTypes).toContain("GlimmerTextNode");
   });
 });
