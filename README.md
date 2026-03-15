@@ -57,11 +57,6 @@ print({
 // => "<template>Hello</template>"
 ```
 
-### Helpers
-
-- **`buildGlimmerVisitorKeys()`** — returns a visitor-keys map for Glimmer node types (prefixed with `Glimmer`), useful for integrating with tools like `eslint-scope`.
-- **`DocumentLines`** — converts between character offsets and `{ line, column }` positions.
-
 ## Examples
 
 The [`examples/`](./examples) directory contains ready-to-run integrations:
