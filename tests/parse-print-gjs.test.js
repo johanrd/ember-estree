@@ -172,9 +172,7 @@ const Comp = <template>مرحبا بالعالم</template>;`;
     // despite multi-byte Unicode characters in the preceding lines.
     const template = ast.program.body[2].declarations[0].init;
     expect(template.type).toBe("GlimmerTemplate");
-    expect(source.slice(template.start, template.end)).toBe(
-      "<template>مرحبا بالعالم</template>",
-    );
+    expect(source.slice(template.start, template.end)).toBe("<template>مرحبا بالعالم</template>");
     expect(template.loc.start.line).toBe(3);
     expect(template.loc.start.column).toBe(13);
 
