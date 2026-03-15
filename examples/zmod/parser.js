@@ -1,9 +1,11 @@
 import { toTree, print } from "ember-estree";
-import { Transformer } from "content-tag-utils";
+import { Preprocessor } from "content-tag";
+
+const preprocessor = new Preprocessor();
 
 /**
- * Compute byte-offset lookup table from source lines.
- * Returns an array where lineOffsets[line] = byte offset of the
+ * Compute character-offset lookup table from source lines.
+ * Returns an array where lineOffsets[line] = character offset of the
  * first character on that (1-based) line.
  */
 function buildLineOffsets(source) {
@@ -17,20 +19,18 @@ function buildLineOffsets(source) {
 }
 
 /**
- * Find all Template nodes in the AST and compute byte offsets
+ * Find all Template nodes in the AST and compute character offsets
  * for their Glimmer child nodes using the template content ranges.
  */
 function prepareGlimmerOffsets(ast, source) {
-  const t = new Transformer(source);
+  const parseResults = preprocessor.parse(source);
 
-  for (const parseResult of t.parseResults) {
-    // Find where the template content starts in the full source
-    const fullTemplate = source.substring(parseResult.range.start, parseResult.range.end);
-    const tagEnd = fullTemplate.indexOf(">") + 1;
-    const contentOffset = parseResult.range.start + tagEnd;
+  for (const parseResult of parseResults) {
+    // content-tag v4 provides UTF-16 codepoint offsets directly
+    const contentOffset = parseResult.contentRange.startUtf16Codepoint;
 
     // Get the template content and build its line offsets
-    const content = source.substring(contentOffset, parseResult.range.end);
+    const content = source.substring(contentOffset, parseResult.contentRange.endUtf16Codepoint);
     const lineOffsets = buildLineOffsets(content);
 
     // Find the Template node in the AST that corresponds to this range
