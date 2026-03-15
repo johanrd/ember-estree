@@ -13,6 +13,14 @@ export default class MyComponent extends Component {
     const ast = parse(source);
     expect(ast.type).toBe("File");
     expect(ast.program.body.length).toBeGreaterThan(0);
+
+    const template = findNode(ast, "GlimmerTemplate");
+    expect(template).toBeTruthy();
+    expect(template.type).toBe("GlimmerTemplate");
+
+    const h1 = findNode(ast, "GlimmerElementNode");
+    expect(h1).toBeTruthy();
+    expect(h1.tag).toBe("h1");
   });
 
   it("parses a gts-style file with type annotations", () => {
@@ -33,9 +41,12 @@ export default class Greeting extends Component {
     const iface = findNode(ast, "TSInterfaceDeclaration");
     expect(iface).toBeTruthy();
 
-    // Class body templates are present in the AST as class properties
     const classDecl = findNode(ast, "ClassDeclaration");
     expect(classDecl).toBeTruthy();
+
+    const template = findNode(ast, "GlimmerTemplate");
+    expect(template).toBeTruthy();
+    expect(template.type).toBe("GlimmerTemplate");
   });
 
   it("can print a constructed GlimmerTemplate from gts context", () => {
