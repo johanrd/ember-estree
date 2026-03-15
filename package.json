@@ -2,7 +2,15 @@
   "name": "ember-estree",
   "version": "0.0.0",
   "description": "ESTree generator for gjs and gts file used by ember",
-  "keywords": ["estree", "AST", "ember", "glimmer", "walker", "traversal", "codemod"],
+  "keywords": [
+    "AST",
+    "codemod",
+    "ember",
+    "estree",
+    "glimmer",
+    "traversal",
+    "walker"
+  ],
   "license": "MIT",
   "author": "NullVoxPopuli",
   "repository": {
@@ -17,7 +25,7 @@
   "scripts": {
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "lint": "oxlint && pnpm format:check",
+    "lint": "oxlint && pnpm format:check && publint",
     "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
   },
@@ -32,6 +40,7 @@
     "@tsconfig/node-lts": "^22.0.2",
     "oxfmt": "^0.40.0",
     "oxlint": "^1.55.0",
+    "publint": "^0.3.18",
     "release-plan": "^0.17.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
