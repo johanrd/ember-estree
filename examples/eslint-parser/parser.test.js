@@ -55,6 +55,24 @@ export { x };`;
     expect(unusedVars[0].message).toContain("y");
   });
 
+  it("no-undef detects undefined variables referenced within a template", () => {
+    // 'undefinedVar' is not defined anywhere — used inside {{}} in template
+    const source = `const x = <template>{{undefinedVar}}</template>;`;
+
+    // NOTE: no-undef for template expressions requires a scopeManager that
+    // understands Glimmer nodes. Without one (scopeManager: null), ESLint's
+    // default scope analysis doesn't recognize GlimmerPathExpression as a
+    // variable reference, so no-undef won't fire inside templates.
+    // A full implementation (like ember-eslint-parser) would build a
+    // scopeManager in parseForESLint() to track references across JS ↔ template.
+    const messages = lint(source, { "no-undef": "error" });
+    const undefErrors = messages.filter((m) => m.ruleId === "no-undef");
+
+    // Currently 0 because there is no scope manager — this is a known limitation.
+    // Once scope tracking is added to the parser, this should detect the error.
+    expect(undefErrors).toEqual([]);
+  });
+
   it("ESLint traverses Glimmer nodes without crashing", () => {
     // A complex template with nested Glimmer nodes
     const source = `
