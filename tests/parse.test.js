@@ -98,4 +98,72 @@ describe("parse", () => {
     const mustache = findNode(ast, "GlimmerMustacheStatement");
     expect(mustache).toBeTruthy();
   });
+
+  it("resolves class body templates into GlimmerTemplate nodes", () => {
+    const source = `export default class MyComponent extends Component {
+  <template><h1>Hello</h1></template>
+}`;
+    const ast = parse(source);
+
+    const classDecl = findNode(ast, "ClassDeclaration");
+    expect(classDecl).toBeTruthy();
+
+    const template = findNode(ast, "GlimmerTemplate");
+    expect(template).toBeTruthy();
+    expect(template.type).toBe("GlimmerTemplate");
+
+    // Template should be in the class body
+    expect(classDecl.body.body[0]).toBe(template);
+
+    // Template should contain the element
+    const h1 = findNode(template, "GlimmerElementNode");
+    expect(h1).toBeTruthy();
+    expect(h1.tag).toBe("h1");
+  });
+
+  it("class body templates have correct byte offsets", () => {
+    const source = `export default class MyComponent extends Component {
+  <template><h1>Hello</h1></template>
+}`;
+    const ast = parse(source);
+
+    const template = findNode(ast, "GlimmerTemplate");
+    expect(template).toBeTruthy();
+
+    // Byte offsets should correspond to the <template>...</template> in the source
+    expect(source.substring(template.start, template.end)).toBe(
+      "<template><h1>Hello</h1></template>",
+    );
+    expect(template.range[0]).toBe(template.start);
+    expect(template.range[1]).toBe(template.end);
+  });
+
+  it("class body templates coexist with class methods", () => {
+    const source = `class Greeting extends Component {
+  get name() { return this.args.name; }
+  <template><h1>Hello {{@name}}</h1></template>
+}`;
+    const ast = parse(source);
+
+    const classDecl = findNode(ast, "ClassDeclaration");
+    expect(classDecl.body.body.length).toBe(2);
+    expect(classDecl.body.body[0].type).toBe("MethodDefinition");
+    expect(classDecl.body.body[1].type).toBe("GlimmerTemplate");
+
+    const mustache = findNode(ast, "GlimmerMustacheStatement");
+    expect(mustache).toBeTruthy();
+  });
+
+  it("handles multiple classes with templates", () => {
+    const source = `class A extends Component {
+  <template><div>A</div></template>
+}
+class B extends Component {
+  <template><div>B</div></template>
+}`;
+    const ast = parse(source);
+
+    const templates = findAllNodes(ast, "GlimmerTemplate");
+    expect(templates.length).toBe(2);
+  });
 });

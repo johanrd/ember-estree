@@ -57,7 +57,7 @@ export function toTree(source, options = {}) {
 
   outerAST = walk(outerAST, null, {
     _(node, { next }) {
-      if (isExpressionPlaceholder(node)) {
+      if (isExpressionPlaceholder(node) || isClassMemberPlaceholder(node)) {
         let parseResult = parseResults.find((r) => {
           // WARNING: these are byte ranges
           return node.start === r.range.start && node.end === r.range.end;
@@ -108,4 +108,10 @@ function isExpressionPlaceholder(node) {
   if (node.type !== "CallExpression") return;
 
   return node.callee.name === "TEMPLATE_TEMPLATE";
+}
+
+function isClassMemberPlaceholder(node) {
+  if (node.type !== "PropertyDefinition") return;
+
+  return node.computed && node.key?.type === "CallExpression" && node.key.callee?.name === "_TEMPLATE_";
 }
