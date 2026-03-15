@@ -2,6 +2,21 @@
 
 ## Release (2026-03-15)
 
+* ember-estree 0.1.2 (patch)
+
+#### :bug: Bug Fix
+* `ember-estree`
+  * [#11](https://github.com/NullVoxPopuli/ember-estree/pull/11) Resolve class body template placeholders into GlimmerTemplate nodes ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### :house: Internal
+* `ember-estree`
+  * [#10](https://github.com/NullVoxPopuli/ember-estree/pull/10) Add CHANGELOG.md to oxfmt ignore list ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### Committers: 1
+- Copilot [Bot] ([@copilot-swe-agent](https://github.com/apps/copilot-swe-agent))
+
+## Release (2026-03-15)
+
 * ember-estree 0.1.1 (patch)
 
 #### :memo: Documentation
