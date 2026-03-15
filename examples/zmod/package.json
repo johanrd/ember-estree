@@ -1,6 +1,7 @@
 {
   "name": "zmod-example",
   "version": "1.0.0",
+  "private": true,
   "description": "Example usage of ember-estree with zmod",
   "keywords": [],
   "license": "ISC",

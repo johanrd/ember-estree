@@ -28,7 +28,7 @@
 import { parseSync } from "oxc-parser";
 import templateRecast from "ember-template-recast";
 import { Transformer } from "content-tag-utils";
-import { walk } from "estree-walker";
+import { walk } from "zimmerframe";
 
 import { processGlimmerTemplate } from "./transforms.js";
 
@@ -55,8 +55,8 @@ export function toTree(source, options = {}) {
 
   let parseResults = t.parseResults;
 
-  walk(outerAST, {
-    enter(node) {
+  outerAST = walk(outerAST, null, {
+    _(node, { next }) {
       if (isExpressionPlaceholder(node)) {
         let parseResult = parseResults.find((r) => {
           // WARNING: these are byte ranges
@@ -69,14 +69,13 @@ export function toTree(source, options = {}) {
         let contentOffset = parseResult.contentRange.start;
         let templateRange = [parseResult.range.start, parseResult.range.end];
 
-        let templateESTree = processGlimmerTemplate(templateAST, {
+        return processGlimmerTemplate(templateAST, {
           contentOffset,
           templateRange,
           source,
         });
-
-        this.replace(templateESTree);
       }
+      next();
     },
   });
 

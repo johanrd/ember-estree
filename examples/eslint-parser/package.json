@@ -1,6 +1,7 @@
 {
   "name": "eslint-parser-example",
   "version": "1.0.0",
+  "private": true,
   "description": "Example ESLint parser plugin using ember-estree",
   "keywords": [],
   "license": "ISC",
