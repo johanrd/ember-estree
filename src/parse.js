@@ -27,10 +27,12 @@
 
 import { parseSync } from "oxc-parser";
 import templateRecast from "ember-template-recast";
-import { Transformer } from "content-tag-utils";
+import { Preprocessor } from "content-tag";
 import { walk } from "zimmerframe";
 
 import { processGlimmerTemplate } from "./transforms.js";
+
+const preprocessor = new Preprocessor();
 
 /**
  * @param {string} source
@@ -38,8 +40,8 @@ import { processGlimmerTemplate } from "./transforms.js";
  * @return {object} A File-like AST with a `.program` property
  */
 export function toTree(source, options = {}) {
-  let t = new Transformer(source);
-  let js = t.toString({ placeholders: true });
+  let parseResults = preprocessor.parse(source);
+  let js = toPlaceholderJS(source, parseResults);
 
   let filename = options.filePath || "input.ts";
   let oxcResult = parseSync(filename, js);
@@ -53,38 +55,25 @@ export function toTree(source, options = {}) {
     end: oxcResult.program.end,
   };
 
-  let parseResults = t.parseResults;
-
-  // oxc-parser reports character offsets (UTF-16 code units), while
-  // content-tag-utils reports byte offsets (UTF-8). Build two converters:
-  // one for `js` (to match placeholder nodes) and one for `source` (to
-  // compute correct start/end/loc on the final AST nodes).
-  // Both buffers are created once here; neither string is mutated after
-  // this point so they remain valid for the lifetime of this call.
-  let jsBuf = Buffer.from(js, "utf8");
-  function byteToChar(byteOffset) {
-    return jsBuf.subarray(0, byteOffset).toString("utf8").length;
-  }
-
-  let sourceBuf = Buffer.from(source, "utf8");
-  function sourceByteToChar(byteOffset) {
-    return sourceBuf.subarray(0, byteOffset).toString("utf8").length;
-  }
-
+  // content-tag v4 provides UTF-16 codepoint offsets that match
+  // JavaScript string indices and oxc-parser character offsets directly,
+  // so no byte-to-character conversion is needed.
   outerAST = walk(outerAST, null, {
     _(node, { next }) {
       if (isExpressionPlaceholder(node) || isClassMemberPlaceholder(node)) {
         let parseResult = parseResults.find((r) => {
-          return node.start === byteToChar(r.range.start) && node.end === byteToChar(r.range.end);
+          return (
+            node.start === r.range.startUtf16Codepoint && node.end === r.range.endUtf16Codepoint
+          );
         });
 
-        let content = t.stringUtils.originalContentOf(parseResult);
+        let content = parseResult.contents;
         let templateAST = templateRecast.parse(content);
 
-        let contentOffset = sourceByteToChar(parseResult.contentRange.start);
+        let contentOffset = parseResult.contentRange.startUtf16Codepoint;
         let templateRange = [
-          sourceByteToChar(parseResult.range.start),
-          sourceByteToChar(parseResult.range.end),
+          parseResult.range.startUtf16Codepoint,
+          parseResult.range.endUtf16Codepoint,
         ];
 
         return processGlimmerTemplate(templateAST, {
@@ -134,4 +123,54 @@ function isClassMemberPlaceholder(node) {
   return (
     node.computed && node.key?.type === "CallExpression" && node.key.callee?.name === "_TEMPLATE_"
   );
+}
+
+/**
+ * Replaces <template>...</template> regions in source with
+ * placeholder expressions of the same character length that
+ * are valid JavaScript, so oxc-parser can parse them.
+ *
+ * Expression templates become:  TEMPLATE_TEMPLATE(`...`)
+ * Class member templates become: [_TEMPLATE_(`...`)] = 0;
+ *
+ * Both placeholder forms use exactly 21 characters for the
+ * opening + closing wrappers, matching the original
+ * <template> (10) + </template> (11) = 21 character overhead.
+ *
+ * @param {string} source
+ * @param {Array<object>} parseResults
+ * @returns {string}
+ */
+function toPlaceholderJS(source, parseResults) {
+  let result = source;
+  let offset = 0;
+
+  for (let pr of parseResults) {
+    let start = pr.range.startUtf16Codepoint;
+    let end = pr.range.endUtf16Codepoint;
+
+    let openingTag, closingTag;
+    switch (pr.type) {
+      case "expression":
+        openingTag = "TEMPLATE_TEMPLATE(`";
+        closingTag = "`)";
+        break;
+      case "class-member":
+        openingTag = "[_TEMPLATE_(`";
+        closingTag = "`)] = 0;";
+        break;
+    }
+
+    let content = source.slice(
+      pr.contentRange.startUtf16Codepoint,
+      pr.contentRange.endUtf16Codepoint,
+    );
+
+    let replacement = openingTag + content + closingTag;
+
+    result = result.slice(0, start + offset) + replacement + result.slice(end + offset);
+    offset += replacement.length - (end - start);
+  }
+
+  return result;
 }

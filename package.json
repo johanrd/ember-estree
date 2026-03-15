@@ -39,7 +39,6 @@
   "dependencies": {
     "@glimmer/syntax": "^0.95.0",
     "content-tag": "^4.1.0",
-    "content-tag-utils": "^0.5.1",
     "ember-template-recast": "^6.1.5",
     "oxc-parser": "^0.119.0",
     "zimmerframe": "^1.1.4"
