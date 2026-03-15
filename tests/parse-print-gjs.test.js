@@ -80,4 +80,104 @@ const Comp = <template>Hello</template>;
     expect(attrNodes.length).toBeGreaterThan(0);
     expect(attrNodes[0].name).toBe("class");
   });
+
+  it("handles Unicode in import path", () => {
+    const source = `import { helper } from 'ünïcödé-addon';
+const Comp = <template>Hello</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const importDecl = ast.program.body[0];
+    expect(importDecl.type).toBe("ImportDeclaration");
+    expect(importDecl.source.value).toBe("ünïcödé-addon");
+
+    // The template node should have correct positional data despite the
+    // Unicode characters in the preceding import path.
+    const template = ast.program.body[1].declarations[0].init;
+    expect(template.type).toBe("GlimmerTemplate");
+    expect(source.slice(template.start, template.end)).toBe("<template>Hello</template>");
+    expect(template.loc.start.line).toBe(2);
+    expect(template.loc.start.column).toBe(13);
+
+    const textNode = template.body[0];
+    expect(textNode.type).toBe("GlimmerTextNode");
+    expect(source.slice(textNode.start, textNode.end)).toBe("Hello");
+  });
+
+  it("handles Unicode in template tag body", () => {
+    const source = `const Greeting = <template>こんにちは</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const textNodes = findAllNodes(ast, "GlimmerTextNode");
+    const unicodeText = textNodes.find((t) => t.chars === "こんにちは");
+    expect(unicodeText).toBeTruthy();
+    expect(unicodeText.chars).toBe("こんにちは");
+
+    // Positional data must correctly span the multi-byte Unicode content.
+    const template = ast.program.body[0].declarations[0].init;
+    expect(template.type).toBe("GlimmerTemplate");
+    expect(source.slice(template.start, template.end)).toBe("<template>こんにちは</template>");
+    expect(template.loc.start).toEqual({ line: 1, column: 17 });
+
+    expect(source.slice(unicodeText.start, unicodeText.end)).toBe("こんにちは");
+    expect(unicodeText.loc.start).toEqual({ line: 1, column: 27 });
+  });
+
+  it("handles Unicode in a string literal", () => {
+    const source = `const msg = '你好世界';
+const Comp = <template>Hello</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const msgDecl = ast.program.body[0];
+    expect(msgDecl.type).toBe("VariableDeclaration");
+    expect(msgDecl.declarations[0].init.value).toBe("你好世界");
+
+    // The template node must have correct positional data despite the
+    // Unicode characters in the preceding string literal.
+    const template = ast.program.body[1].declarations[0].init;
+    expect(template.type).toBe("GlimmerTemplate");
+    expect(source.slice(template.start, template.end)).toBe("<template>Hello</template>");
+    expect(template.loc.start.line).toBe(2);
+    expect(template.loc.start.column).toBe(13);
+
+    const textNode = template.body[0];
+    expect(textNode.type).toBe("GlimmerTextNode");
+    expect(source.slice(textNode.start, textNode.end)).toBe("Hello");
+  });
+
+  it("handles Unicode in import path, template body, and string all together", () => {
+    const source = `import { t } from '🌍-i18n';
+const greeting = '¡Héllo Wörld!';
+const Comp = <template>مرحبا بالعالم</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+
+    const importDecl = ast.program.body[0];
+    expect(importDecl.type).toBe("ImportDeclaration");
+    expect(importDecl.source.value).toBe("🌍-i18n");
+
+    const varDecl = ast.program.body[1];
+    expect(varDecl.type).toBe("VariableDeclaration");
+    expect(varDecl.declarations[0].init.value).toBe("¡Héllo Wörld!");
+
+    const textNodes = findAllNodes(ast, "GlimmerTextNode");
+    const arabicText = textNodes.find((t) => t.chars === "مرحبا بالعالم");
+    expect(arabicText).toBeTruthy();
+    expect(arabicText.chars).toBe("مرحبا بالعالم");
+
+    // The template and its text content must have correct positional data
+    // despite multi-byte Unicode characters in the preceding lines.
+    const template = ast.program.body[2].declarations[0].init;
+    expect(template.type).toBe("GlimmerTemplate");
+    expect(source.slice(template.start, template.end)).toBe("<template>مرحبا بالعالم</template>");
+    expect(template.loc.start.line).toBe(3);
+    expect(template.loc.start.column).toBe(13);
+
+    expect(source.slice(arabicText.start, arabicText.end)).toBe("مرحبا بالعالم");
+    expect(arabicText.loc.start.line).toBe(3);
+    expect(arabicText.loc.start.column).toBe(23);
+  });
 });
