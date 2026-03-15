@@ -56,13 +56,19 @@ export function toTree(source, options = {}) {
   let parseResults = t.parseResults;
 
   // oxc-parser reports character offsets (UTF-16 code units), while
-  // content-tag-utils reports byte offsets (UTF-8). Convert byte offsets
-  // to character offsets so they can be compared when Unicode is present.
-  // The buffer is created once here and reused; `js` is never mutated after
-  // this point so the buffer remains valid for the lifetime of this call.
+  // content-tag-utils reports byte offsets (UTF-8). Build two converters:
+  // one for `js` (to match placeholder nodes) and one for `source` (to
+  // compute correct start/end/loc on the final AST nodes).
+  // Both buffers are created once here; neither string is mutated after
+  // this point so they remain valid for the lifetime of this call.
   let jsBuf = Buffer.from(js, "utf8");
   function byteToChar(byteOffset) {
     return jsBuf.subarray(0, byteOffset).toString("utf8").length;
+  }
+
+  let sourceBuf = Buffer.from(source, "utf8");
+  function sourceByteToChar(byteOffset) {
+    return sourceBuf.subarray(0, byteOffset).toString("utf8").length;
   }
 
   outerAST = walk(outerAST, null, {
@@ -75,8 +81,11 @@ export function toTree(source, options = {}) {
         let content = t.stringUtils.originalContentOf(parseResult);
         let templateAST = templateRecast.parse(content);
 
-        let contentOffset = parseResult.contentRange.start;
-        let templateRange = [parseResult.range.start, parseResult.range.end];
+        let contentOffset = sourceByteToChar(parseResult.contentRange.start);
+        let templateRange = [
+          sourceByteToChar(parseResult.range.start),
+          sourceByteToChar(parseResult.range.end),
+        ];
 
         return processGlimmerTemplate(templateAST, {
           contentOffset,
