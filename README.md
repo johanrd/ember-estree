@@ -2,7 +2,7 @@
 
 ESTree-compatible AST parser for Ember's `.gjs` and `.gts` files.
 
-Parses `<template>` tags into [Glimmer](https://github.com/glimmerjs/glimmer-vm) AST nodes that are embedded directly in the ESTree, so tools like linters and codemods can work with both the JavaScript/TypeScript _and_ template portions of a single file.
+Parses `<template>` tags into [Glimmer](https://github.com/emberjs/ember.js/) AST nodes that are embedded directly in the ESTree, so tools like linters and codemods can work with both the JavaScript/TypeScript _and_ template portions of a single file.
 
 ## Install
 
