@@ -2,6 +2,21 @@
 
 ## Release (2026-03-15)
 
+* ember-estree 0.1.1 (patch)
+
+#### :memo: Documentation
+* `ember-estree`
+  * [#8](https://github.com/NullVoxPopuli/ember-estree/pull/8) Add basic README and fix lints ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### :house: Internal
+* `ember-estree`
+  * [#7](https://github.com/NullVoxPopuli/ember-estree/pull/7) Upgrade actions/checkout@v4 to v6 in CI workflow ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### Committers: 1
+- Copilot [Bot] ([@copilot-swe-agent](https://github.com/apps/copilot-swe-agent))
+
+## Release (2026-03-15)
+
 - ember-estree 0.1.0 (minor)
 
 #### :rocket: Enhancement
