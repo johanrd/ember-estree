@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parse, print } from "../src/index.js";
-import { findNode, findAllNodes } from "./helpers.js";
+import { findNode } from "./helpers.js";
 
 describe("parse + print (.gts)", () => {
   it("parses a gts-style file with a class component", () => {

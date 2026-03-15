@@ -113,5 +113,7 @@ function isExpressionPlaceholder(node) {
 function isClassMemberPlaceholder(node) {
   if (node.type !== "PropertyDefinition") return;
 
-  return node.computed && node.key?.type === "CallExpression" && node.key.callee?.name === "_TEMPLATE_";
+  return (
+    node.computed && node.key?.type === "CallExpression" && node.key.callee?.name === "_TEMPLATE_"
+  );
 }
