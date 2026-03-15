@@ -2,6 +2,22 @@
 
 ## Release (2026-03-15)
 
+* ember-estree 0.2.0 (minor)
+
+#### :rocket: Enhancement
+* `ember-estree`
+  * [#16](https://github.com/NullVoxPopuli/ember-estree/pull/16) Use content-tag v4 directly, eliminate Buffer-based byte↔char offset conversion ([@Copilot](https://github.com/apps/copilot-swe-agent))
+  * [#14](https://github.com/NullVoxPopuli/ember-estree/pull/14) Add TypeScript type declarations for public API ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### :house: Internal
+* `ember-estree`
+  * [#13](https://github.com/NullVoxPopuli/ember-estree/pull/13) Add Unicode component tests and fix UTF-8/UTF-16 byte offset mismatch ([@Copilot](https://github.com/apps/copilot-swe-agent))
+
+#### Committers: 1
+- Copilot [Bot] ([@copilot-swe-agent](https://github.com/apps/copilot-swe-agent))
+
+## Release (2026-03-15)
+
 * ember-estree 0.1.2 (patch)
 
 #### :bug: Bug Fix
