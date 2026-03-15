@@ -26,10 +26,10 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "format": "oxfmt --ignore-path .oxfmtignore",
-    "format:check": "oxfmt --check --ignore-path .oxfmtignore",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "lint": "oxlint && pnpm format:check && publint",
-    "lint:fix": "oxlint --fix && oxfmt --ignore-path .oxfmtignore",
+    "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
   },
   "dependencies": {
