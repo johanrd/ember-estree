@@ -2,9 +2,9 @@
   "name": "ember-estree",
   "version": "0.0.0",
   "description": "ESTree generator for gjs and gts file used by ember",
-  "keywords": [],
+  "keywords": ["estree", "AST", "ember", "glimmer", "walker", "traversal", "codemod"],
   "license": "MIT",
-  "author": "",
+  "author": "NullVoxPopuli",
   "repository": {
     "type": "git",
     "url": "git@github.com:NullVoxPopuli/ember-estree.git"
