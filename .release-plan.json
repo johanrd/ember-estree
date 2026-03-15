@@ -1,14 +1,14 @@
 {
   "solution": {
     "ember-estree": {
-      "impact": "patch",
-      "oldVersion": "0.1.1",
-      "newVersion": "0.1.2",
+      "impact": "minor",
+      "oldVersion": "0.1.2",
+      "newVersion": "0.2.0",
       "tagName": "latest",
       "constraints": [
         {
-          "impact": "patch",
-          "reason": "Appears in changelog section :bug: Bug Fix"
+          "impact": "minor",
+          "reason": "Appears in changelog section :rocket: Enhancement"
         },
         {
           "impact": "patch",
@@ -18,5 +18,5 @@
       "pkgJSONPath": "./package.json"
     }
   },
-  "description": "## Release (2026-03-15)\n\n* ember-estree 0.1.2 (patch)\n\n#### :bug: Bug Fix\n* `ember-estree`\n  * [#11](https://github.com/NullVoxPopuli/ember-estree/pull/11) Resolve class body template placeholders into GlimmerTemplate nodes ([@Copilot](https://github.com/apps/copilot-swe-agent))\n\n#### :house: Internal\n* `ember-estree`\n  * [#10](https://github.com/NullVoxPopuli/ember-estree/pull/10) Add CHANGELOG.md to oxfmt ignore list ([@Copilot](https://github.com/apps/copilot-swe-agent))\n\n#### Committers: 1\n- Copilot [Bot] ([@copilot-swe-agent](https://github.com/apps/copilot-swe-agent))\n"
+  "description": "## Release (2026-03-15)\n\n* ember-estree 0.2.0 (minor)\n\n#### :rocket: Enhancement\n* `ember-estree`\n  * [#16](https://github.com/NullVoxPopuli/ember-estree/pull/16) Use content-tag v4 directly, eliminate Buffer-based byte↔char offset conversion ([@Copilot](https://github.com/apps/copilot-swe-agent))\n  * [#14](https://github.com/NullVoxPopuli/ember-estree/pull/14) Add TypeScript type declarations for public API ([@Copilot](https://github.com/apps/copilot-swe-agent))\n\n#### :house: Internal\n* `ember-estree`\n  * [#13](https://github.com/NullVoxPopuli/ember-estree/pull/13) Add Unicode component tests and fix UTF-8/UTF-16 byte offset mismatch ([@Copilot](https://github.com/apps/copilot-swe-agent))\n\n#### Committers: 1\n- Copilot [Bot] ([@copilot-swe-agent](https://github.com/apps/copilot-swe-agent))\n"
 }
