@@ -55,12 +55,21 @@ export function toTree(source, options = {}) {
 
   let parseResults = t.parseResults;
 
+  // oxc-parser reports character offsets (UTF-16 code units), while
+  // content-tag-utils reports byte offsets (UTF-8). Convert byte offsets
+  // to character offsets so they can be compared when Unicode is present.
+  // The buffer is created once here and reused; `js` is never mutated after
+  // this point so the buffer remains valid for the lifetime of this call.
+  let jsBuf = Buffer.from(js, "utf8");
+  function byteToChar(byteOffset) {
+    return jsBuf.subarray(0, byteOffset).toString("utf8").length;
+  }
+
   outerAST = walk(outerAST, null, {
     _(node, { next }) {
       if (isExpressionPlaceholder(node)) {
         let parseResult = parseResults.find((r) => {
-          // WARNING: these are byte ranges
-          return node.start === r.range.start && node.end === r.range.end;
+          return node.start === byteToChar(r.range.start) && node.end === byteToChar(r.range.end);
         });
 
         let content = t.stringUtils.originalContentOf(parseResult);

@@ -80,4 +80,59 @@ const Comp = <template>Hello</template>;
     expect(attrNodes.length).toBeGreaterThan(0);
     expect(attrNodes[0].name).toBe("class");
   });
+
+  it("handles Unicode in import path", () => {
+    const source = `import { helper } from 'ünïcödé-addon';
+const Comp = <template>Hello</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const importDecl = ast.program.body[0];
+    expect(importDecl.type).toBe("ImportDeclaration");
+    expect(importDecl.source.value).toBe("ünïcödé-addon");
+  });
+
+  it("handles Unicode in template tag body", () => {
+    const source = `const Greeting = <template>こんにちは</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const textNodes = findAllNodes(ast, "GlimmerTextNode");
+    const unicodeText = textNodes.find((t) => t.chars === "こんにちは");
+    expect(unicodeText).toBeTruthy();
+    expect(unicodeText.chars).toBe("こんにちは");
+  });
+
+  it("handles Unicode in a string literal", () => {
+    const source = `const msg = '你好世界';
+const Comp = <template>Hello</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+    const msgDecl = ast.program.body[0];
+    expect(msgDecl.type).toBe("VariableDeclaration");
+    expect(msgDecl.declarations[0].init.value).toBe("你好世界");
+  });
+
+  it("handles Unicode in import path, template body, and string all together", () => {
+    const source = `import { t } from '🌍-i18n';
+const greeting = '¡Héllo Wörld!';
+const Comp = <template>مرحبا بالعالم</template>;`;
+    const ast = parse(source);
+
+    expect(ast.type).toBe("File");
+
+    const importDecl = ast.program.body[0];
+    expect(importDecl.type).toBe("ImportDeclaration");
+    expect(importDecl.source.value).toBe("🌍-i18n");
+
+    const varDecl = ast.program.body[1];
+    expect(varDecl.type).toBe("VariableDeclaration");
+    expect(varDecl.declarations[0].init.value).toBe("¡Héllo Wörld!");
+
+    const textNodes = findAllNodes(ast, "GlimmerTextNode");
+    const arabicText = textNodes.find((t) => t.chars === "مرحبا بالعالم");
+    expect(arabicText).toBeTruthy();
+    expect(arabicText.chars).toBe("مرحبا بالعالم");
+  });
 });
