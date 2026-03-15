@@ -25,29 +25,33 @@
  * - https://github.com/embroider-build/content-tag/
  */
 
-import babelParser from "@babel/parser";
+import { parseSync } from "oxc-parser";
 import templateRecast from "ember-template-recast";
 import { Transformer } from "content-tag-utils";
 import { walk } from "estree-walker";
 
-import { tsOptions } from "./options.js";
 import { processGlimmerTemplate } from "./transforms.js";
 
 /**
- * @typedef {import('@babel/parser').ParseResult} Result
- *
  * @param {string} source
  * @param {object} options
- * @return {Result}
+ * @return {object} A File-like AST with a `.program` property
  */
 export function toTree(source, options = {}) {
   let t = new Transformer(source);
   let js = t.toString({ placeholders: true });
 
-  let outerAST = babelParser.parse(js, {
-    ...tsOptions,
-    ...options,
-  });
+  let filename = options.filePath || "input.ts";
+  let oxcResult = parseSync(filename, js);
+
+  // Wrap in a File-like node to match the expected structure
+  let outerAST = {
+    type: "File",
+    program: oxcResult.program,
+    comments: oxcResult.comments || [],
+    start: oxcResult.program.start,
+    end: oxcResult.program.end,
+  };
 
   let parseResults = t.parseResults;
 

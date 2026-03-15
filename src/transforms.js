@@ -12,7 +12,7 @@
  *  - Empty text node removal
  */
 
-import * as glimmer from "@glimmer/syntax";
+import { traverse, visitorKeys as glimmerVisitorKeys } from "@glimmer/syntax";
 
 /**
  * Converts between character offsets and line/column positions.
@@ -53,7 +53,7 @@ function collectNodes(ast) {
   const textNodes = [];
   const emptyTextNodes = [];
 
-  glimmer.traverse(ast, {
+  traverse(ast, {
     All(node, path) {
       node.parent = path.parentNode;
       allNodes.push(node);
@@ -89,40 +89,14 @@ function removeFromParent(nodes) {
 }
 
 /**
- * Glimmer AST visitor keys — defines which properties contain child nodes.
- * Defined explicitly because @glimmer/syntax no longer exports visitorKeys.
- */
-const GLIMMER_VISITOR_KEYS = {
-  Template: ["body"],
-  Block: ["body"],
-  MustacheStatement: ["path", "params", "hash"],
-  BlockStatement: ["path", "params", "hash", "program", "inverse"],
-  ElementModifierStatement: ["path", "params", "hash"],
-  CommentStatement: [],
-  MustacheCommentStatement: [],
-  ElementNode: ["children", "attributes", "modifiers", "comments"],
-  AttrNode: ["value"],
-  TextNode: [],
-  ConcatStatement: ["parts"],
-  SubExpression: ["path", "params", "hash"],
-  PathExpression: [],
-  StringLiteral: [],
-  BooleanLiteral: [],
-  NumberLiteral: [],
-  NullLiteral: [],
-  UndefinedLiteral: [],
-  Hash: ["pairs"],
-  HashPair: ["value"],
-};
-
-/**
  * Build the Glimmer visitor keys map with "Glimmer" prefix.
+ * Uses the visitor keys exported by @glimmer/syntax.
  */
 let _cachedGlimmerVisitorKeys = null;
 export function buildGlimmerVisitorKeys() {
   if (_cachedGlimmerVisitorKeys) return _cachedGlimmerVisitorKeys;
   const keys = {};
-  for (const [k, v] of Object.entries(GLIMMER_VISITOR_KEYS)) {
+  for (const [k, v] of Object.entries(glimmerVisitorKeys)) {
     keys[`Glimmer${k}`] = [...v];
   }
   if (!keys.GlimmerElementNode.includes("blockParamNodes")) {
@@ -165,7 +139,7 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
     end: sourceDoc.offsetToPosition(range[1]),
   });
 
-  const { allNodes, comments, textNodes, emptyTextNodes } = collectNodes(templateAST);
+  const { allNodes, comments, emptyTextNodes } = collectNodes(templateAST);
 
   for (const n of allNodes) {
     const loc = n.loc.toJSON ? n.loc.toJSON() : n.loc;

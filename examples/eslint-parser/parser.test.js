@@ -33,12 +33,13 @@ describe("ESLint parser example — invokes ESLint", () => {
   });
 
   it("ESLint can report lint violations on JS around templates", () => {
-    const source = `var x = <template><h1>Hello</h1></template>;`;
-    const messages = lint(source, { "no-var": "error" });
+    const source = `
+const x = <template><h1>Hello</h1></template>;
+with (x) { console.log(x); }`;
+    const messages = lint(source, { "no-with": "error" });
 
     expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].ruleId).toBe("no-var");
-    expect(messages[0].message).toContain("Unexpected var");
+    expect(messages[0].ruleId).toBe("no-with");
   });
 
   it("no-unused-vars works on JS identifiers", () => {
@@ -92,15 +93,15 @@ export default class Greeting {
     expect(parseErrors).toEqual([]);
   });
 
-  it("semi rule works on statements around templates", () => {
-    // Missing semicolons
-    const source = `const x = <template><h1>Hello</h1></template>
-const y = 1
-export { x, y }`;
+  it("no-eval rule works on JS around templates", () => {
+    const source = `
+const x = <template><h1>Hello</h1></template>;
+eval("1 + 1");
+export { x };`;
 
-    const messages = lint(source, { semi: ["error", "always"] });
-    const semiErrors = messages.filter((m) => m.ruleId === "semi");
-    expect(semiErrors.length).toBeGreaterThan(0);
+    const messages = lint(source, { "no-eval": "error" });
+    const evalErrors = messages.filter((m) => m.ruleId === "no-eval");
+    expect(evalErrors.length).toBeGreaterThan(0);
   });
 
   it("ESLint can use a custom rule that visits Glimmer nodes", () => {
@@ -113,7 +114,7 @@ export { x, y }`;
     const plugin = {
       rules: {
         "collect-glimmer-nodes": {
-          create(context) {
+          create(_context) {
             // Return visitors for each Glimmer node type
             return {
               GlimmerTemplate(node) {

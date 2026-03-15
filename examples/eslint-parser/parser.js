@@ -8,27 +8,35 @@
  * @see https://eslint.org/docs/latest/extend/custom-parsers
  * @see https://github.com/ember-tooling/ember-eslint-parser
  */
-import { parse, buildGlimmerVisitorKeys } from "ember-estree";
+import { parse, buildGlimmerVisitorKeys, DocumentLines } from "ember-estree";
 
 /**
- * Recursively add `range: [start, end]` to every AST node that has
- * `start`/`end` but no `range`. ESLint requires range arrays on all nodes.
+ * Recursively add `range: [start, end]` and `loc` to every AST node that has
+ * `start`/`end` but is missing them. ESLint requires both on all nodes.
  */
-function addRanges(node, visited = new Set()) {
+function addRangesAndLocs(node, docLines, visited = new Set()) {
   if (!node || typeof node !== "object" || visited.has(node)) return;
   visited.add(node);
 
-  if (node.type && typeof node.start === "number" && typeof node.end === "number" && !node.range) {
-    node.range = [node.start, node.end];
+  if (node.type && typeof node.start === "number" && typeof node.end === "number") {
+    if (!node.range) {
+      node.range = [node.start, node.end];
+    }
+    if (!node.loc) {
+      node.loc = {
+        start: docLines.offsetToPosition(node.start),
+        end: docLines.offsetToPosition(node.end),
+      };
+    }
   }
 
   for (const key of Object.keys(node)) {
     if (key === "loc" || key === "parent" || key === "tokens" || key === "comments") continue;
     const val = node[key];
     if (Array.isArray(val)) {
-      for (const item of val) addRanges(item, visited);
+      for (const item of val) addRangesAndLocs(item, docLines, visited);
     } else if (val && typeof val === "object") {
-      addRanges(val, visited);
+      addRangesAndLocs(val, docLines, visited);
     }
   }
 }
@@ -54,20 +62,19 @@ function mergeVisitorKeys() {
 export function parseForESLint(code, options = {}) {
   const ast = parse(code, options);
 
-  // The AST from ember-estree is a Babel File node.
+  // The AST from ember-estree is a File-like node.
   // ESLint expects a Program node as the root.
   const program = ast.program;
 
-  // ESLint requires `range: [start, end]` on all AST nodes.
-  // Babel only sets `start`/`end`. Walk the tree to add ranges.
-  addRanges(program);
+  // ESLint requires `range: [start, end]` and `loc` on all AST nodes.
+  // oxc-parser only sets `start`/`end`. Walk the tree to add both.
+  const docLines = new DocumentLines(code);
+  addRangesAndLocs(program, docLines);
 
   // Ensure required ESLint properties exist
   program.tokens = (program.tokens || ast.tokens || []).map((t) => ({
     ...t,
-    // ESLint requires range arrays on tokens
     range: t.range || [t.start, t.end],
-    // ESLint expects token.type to be a string, not an object
     type: typeof t.type === "string" ? t.type : t.type?.label || "Punctuator",
   }));
   program.comments = (program.comments || ast.comments || []).map((c) => ({
@@ -77,7 +84,7 @@ export function parseForESLint(code, options = {}) {
   program.range = program.range || [program.start, program.end];
   program.loc = program.loc || {
     start: { line: 1, column: 0 },
-    end: { line: 1, column: 0 },
+    end: docLines.offsetToPosition(code.length),
   };
 
   const visitorKeys = mergeVisitorKeys();

@@ -15,7 +15,20 @@ function stripPositions(node, visited = new Set()) {
 
   const result = {};
   for (const [key, val] of Object.entries(node)) {
-    if (["loc", "start", "end", "range", "parent", "errors", "leadingComments", "trailingComments", "innerComments"].includes(key)) continue;
+    if (
+      [
+        "loc",
+        "start",
+        "end",
+        "range",
+        "parent",
+        "errors",
+        "leadingComments",
+        "trailingComments",
+        "innerComments",
+      ].includes(key)
+    )
+      continue;
     if (val && typeof val === "object") {
       result[key] = stripPositions(val, visited);
     } else {
@@ -152,7 +165,9 @@ describe("AST snapshots — individual Glimmer nodes", () => {
   });
 
   it("GlimmerBlockStatement (each)", () => {
-    const ast = parse(`const x = <template>{{#each @items as |item|}}{{item}}{{/each}}</template>;`);
+    const ast = parse(
+      `const x = <template>{{#each @items as |item|}}{{item}}{{/each}}</template>;`,
+    );
     const template = ast.program.body[0].declarations[0].init;
     const block = template.body[0];
 
@@ -287,9 +302,7 @@ describe("AST snapshots — ranges and locs", () => {
 
     // GlimmerTemplate range covers the full <template>...</template>
     expect(template.type).toBe("GlimmerTemplate");
-    expect(source.slice(template.start, template.end)).toBe(
-      "<template><h1>Hello</h1></template>",
-    );
+    expect(source.slice(template.start, template.end)).toBe("<template><h1>Hello</h1></template>");
 
     // GlimmerElementNode range covers <h1>Hello</h1>
     const h1 = template.body[0];
@@ -340,12 +353,8 @@ const B = <template><p>second</p></template>;`;
     const templateA = ast.program.body[0].declarations[0].init;
     const templateB = ast.program.body[1].declarations[0].init;
 
-    expect(source.slice(templateA.start, templateA.end)).toBe(
-      "<template><p>first</p></template>",
-    );
-    expect(source.slice(templateB.start, templateB.end)).toBe(
-      "<template><p>second</p></template>",
-    );
+    expect(source.slice(templateA.start, templateA.end)).toBe("<template><p>first</p></template>");
+    expect(source.slice(templateB.start, templateB.end)).toBe("<template><p>second</p></template>");
   });
 
   it("PathExpression head has correct range", () => {
@@ -381,9 +390,13 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
       {
         "declarations": [
           {
+            "definite": false,
             "id": {
+              "decorators": [],
               "name": "x",
+              "optional": false,
               "type": "Identifier",
+              "typeAnnotation": null,
             },
             "init": {
               "blockParamNodes": [],
@@ -400,6 +413,7 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
             "type": "VariableDeclarator",
           },
         ],
+        "declare": false,
         "kind": "const",
         "type": "VariableDeclaration",
       }
