@@ -3,35 +3,35 @@
   "version": "0.0.0",
   "description": "ESTree generator for gjs and gts file used by ember",
   "keywords": [],
+  "license": "MIT",
+  "author": "",
   "repository": {
     "type": "git",
     "url": "git@github.com:NullVoxPopuli/ember-estree.git"
   },
-  "license": "ISC",
-  "author": "",
   "type": "module",
+  "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"
   },
-  "main": "index.js",
   "scripts": {
-    "format": "prettier . --write",
-    "lint:format": "prettier . --check",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint && pnpm format:check",
+    "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
   },
   "dependencies": {
-    "@babel/core": "^7.28.4",
-    "@babel/parser": "^7.28.4",
-    "@babel/plugin-transform-typescript": "^7.28.0",
+    "@glimmer/syntax": "^0.95.0",
     "content-tag-utils": "^0.5.1",
-    "decorator-transforms": "^2.3.0",
     "ember-template-recast": "^6.1.5",
-    "estree-walker": "^3.0.3"
+    "oxc-parser": "^0.119.0",
+    "zimmerframe": "^1.1.4"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
-    "prettier": "^3.6.2",
-    "prettier-plugin-ember-template-tag": "^2.1.0",
+    "oxfmt": "^0.40.0",
+    "oxlint": "^1.55.0",
     "release-plan": "^0.17.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

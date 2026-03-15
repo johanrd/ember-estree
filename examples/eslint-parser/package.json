@@ -1,0 +1,20 @@
+{
+  "name": "eslint-parser-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Example ESLint parser plugin using ember-estree",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "ember-estree": "workspace:*",
+    "eslint": "^10.0.3",
+    "eslint-scope": "^9.1.2",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@10.18.2"
+}
