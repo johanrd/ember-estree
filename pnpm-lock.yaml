@@ -51,6 +51,9 @@ importers:
       eslint:
         specifier: ^10.0.3
         version: 10.0.3
+      eslint-scope:
+        specifier: ^9.1.2
+        version: 9.1.2
       vitest:
         specifier: ^3.2.4
         version: 3.2.4
