@@ -30,7 +30,7 @@ function prepareGlimmerOffsets(ast, source) {
     const contentOffset = parseResult.contentRange.startUtf16Codepoint;
 
     // Get the template content and build its line offsets
-    const content = source.substring(contentOffset, parseResult.endRange.startUtf16Codepoint);
+    const content = source.substring(contentOffset, parseResult.contentRange.endUtf16Codepoint);
     const lineOffsets = buildLineOffsets(content);
 
     // Find the Template node in the AST that corresponds to this range
