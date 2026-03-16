@@ -93,3 +93,12 @@ export function print(node: ASTNode): string;
  * @returns A map of Glimmer node type names to arrays of child-property names.
  */
 export function buildGlimmerVisitorKeys(): Record<string, string[]>;
+
+/**
+ * Recursively remove all `parent` references from an AST.
+ * Useful when you need to serialize the tree to JSON,
+ * since parent back-references create circular structures.
+ *
+ * Mutates the tree in place and returns it.
+ */
+export function removeParentReferences(ast: ASTNode): ASTNode;

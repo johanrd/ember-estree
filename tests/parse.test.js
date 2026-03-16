@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parse } from "../src/index.js";
+import { parse, removeParentReferences } from "../src/index.js";
 import { findNode, findAllNodes } from "./helpers.js";
 
 describe("parse", () => {
@@ -48,31 +48,30 @@ describe("parse", () => {
     checkStartEnd(ast);
   });
 
-  it("does not have circular parent references on Glimmer nodes", () => {
+  it("removeParentReferences removes circular parent references", () => {
     const source = `const x = <template><h1>Hello</h1></template>;`;
     const ast = parse(source);
+    removeParentReferences(ast);
 
-    function checkNoCircularParent(node, visited = new Set()) {
+    function checkNoParent(node, visited = new Set()) {
       if (!node || typeof node !== "object" || visited.has(node)) return;
       visited.add(node);
       if (node.type) {
-        expect(!("parent" in node) || node.parent === null || typeof node.parent !== "object").toBe(
-          true,
-        );
+        expect("parent" in node).toBe(false);
       }
       for (const key of Object.keys(node)) {
-        if (key === "parent" || key === "loc") continue;
+        if (key === "loc") continue;
         const val = node[key];
         if (Array.isArray(val)) {
           for (const item of val) {
-            checkNoCircularParent(item, visited);
+            checkNoParent(item, visited);
           }
         } else if (val && typeof val === "object" && val.type) {
-          checkNoCircularParent(val, visited);
+          checkNoParent(val, visited);
         }
       }
     }
-    checkNoCircularParent(ast);
+    checkNoParent(ast);
   });
 
   it("parses Glimmer template nodes into the AST", () => {

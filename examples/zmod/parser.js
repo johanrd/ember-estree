@@ -1,4 +1,4 @@
-import { toTree, print } from "ember-estree";
+import { toTree, print, removeParentReferences } from "ember-estree";
 import { Preprocessor } from "content-tag";
 
 const preprocessor = new Preprocessor();
@@ -113,6 +113,7 @@ export const emberParser = {
   parse(code) {
     const ast = toTree(code);
     prepareGlimmerOffsets(ast, code);
+    removeParentReferences(ast);
     return ast;
   },
   print(node) {
