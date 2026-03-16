@@ -1,5 +1,20 @@
 # Changelog
 
+## Release (2026-03-16)
+
+* ember-estree 0.3.0 (minor)
+
+#### :rocket: Enhancement
+* `ember-estree`
+  * [#17](https://github.com/NullVoxPopuli/ember-estree/pull/17) Remove parent removal by default ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+
+#### :memo: Documentation
+* `ember-estree`
+  * [#19](https://github.com/NullVoxPopuli/ember-estree/pull/19) Cleanup zmod example ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+
+#### Committers: 1
+- [@NullVoxPopuli](https://github.com/NullVoxPopuli)
+
 ## Release (2026-03-15)
 
 * ember-estree 0.2.0 (minor)
