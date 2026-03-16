@@ -221,10 +221,5 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
     comment.type = "Block";
   }
 
-  // Clear parent references (they cause circular JSON issues)
-  for (const n of allNodes) {
-    n.parent = null;
-  }
-
   return templateAST;
 }
