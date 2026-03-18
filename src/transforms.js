@@ -1,19 +1,8 @@
 /**
  * Glimmer AST → ESTree transform utilities.
- *
- * Handles:
- *  - Parsing raw template content via @glimmer/syntax
- *  - Type prefixing (all Glimmer types get a "Glimmer" prefix)
- *  - Range / loc fixing (converts template-local positions to file-level)
- *  - ElementNode `parts` and `name` fields
- *  - blockParams → virtual node creation
- *  - Empty hash nullification
- *  - Empty text node removal
- *  - Tokenization and token stream building
  */
 
 import {
-  traverse as glimmerTraverse,
   visitorKeys as glimmerVisitorKeys,
   preprocess as glimmerPreprocess,
 } from "@glimmer/syntax";
@@ -49,52 +38,7 @@ export class DocumentLines {
 }
 
 /**
- * Traverse a Glimmer AST, set parent references, and categorize nodes.
- */
-function collectNodes(ast) {
-  const allNodes = [];
-  const comments = [];
-  const textNodes = [];
-  const emptyTextNodes = [];
-
-  glimmerTraverse(ast, {
-    All(node, path) {
-      node.parent = path.parentNode;
-      allNodes.push(node);
-      if (node.type === "CommentStatement" || node.type === "MustacheCommentStatement") {
-        comments.push(node);
-      }
-      if (node.type === "TextNode") {
-        node.value = node.chars;
-        if (node.value.trim().length !== 0 || (node.parent && node.parent.type === "AttrNode")) {
-          textNodes.push(node);
-        } else {
-          emptyTextNodes.push(node);
-        }
-      }
-    },
-  });
-
-  return { allNodes, comments, textNodes, emptyTextNodes };
-}
-
-/**
- * Remove nodes from their parent's children/body/parts arrays.
- */
-function removeFromParent(nodes) {
-  for (const node of nodes) {
-    const children =
-      (node.parent && (node.parent.children || node.parent.body || node.parent.parts)) || [];
-    const idx = children.indexOf(node);
-    if (idx >= 0) {
-      children.splice(idx, 1);
-    }
-  }
-}
-
-/**
  * Build the Glimmer visitor keys map with "Glimmer" prefix.
- * Uses the visitor keys exported by @glimmer/syntax.
  */
 let _cachedGlimmerVisitorKeys = null;
 export function buildGlimmerVisitorKeys() {
@@ -112,32 +56,63 @@ export function buildGlimmerVisitorKeys() {
   return keys;
 }
 
+// ── Internal helpers ──────────────────────────────────────────────────
+
+/**
+ * Recursively collect all nodes in a Glimmer AST using visitor keys.
+ * Sets parent references during traversal.
+ */
+function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNodes) {
+  node.parent = parent;
+  allNodes.push(node);
+  if (node.type === "CommentStatement" || node.type === "MustacheCommentStatement") {
+    comments.push(node);
+  }
+  if (node.type === "TextNode") {
+    node.value = node.chars;
+    if (node.value.trim().length !== 0 || (parent && parent.type === "AttrNode")) {
+      textNodes.push(node);
+    } else {
+      emptyTextNodes.push(node);
+    }
+  }
+  const keys = glimmerVisitorKeys[node.type];
+  if (!keys) return;
+  for (const key of keys) {
+    const child = node[key];
+    if (!child) continue;
+    if (Array.isArray(child)) {
+      for (const item of child) {
+        if (item && typeof item === "object" && item.type) {
+          collectNodes(item, node, allNodes, comments, textNodes, emptyTextNodes);
+        }
+      }
+    } else if (typeof child === "object" && child.type) {
+      collectNodes(child, node, allNodes, comments, textNodes, emptyTextNodes);
+    }
+  }
+}
+
+function removeFromParent(nodes) {
+  for (const node of nodes) {
+    const children =
+      (node.parent && (node.parent.children || node.parent.body || node.parent.parts)) || [];
+    const idx = children.indexOf(node);
+    if (idx >= 0) {
+      children.splice(idx, 1);
+    }
+  }
+}
+
 function isAlphaNumeric(code) {
-  return !(
-    !(code > 47 && code < 58) && // numeric (0-9)
-    !(code > 64 && code < 91) && // upper alpha (A-Z)
-    !(code > 96 && code < 123)
-  );
+  return !(!(code > 47 && code < 58) && !(code > 64 && code < 91) && !(code > 96 && code < 123));
 }
 
 function isWhiteSpaceCode(code) {
-  return (
-    code === 32 /* space */ ||
-    code === 9 /* tab */ ||
-    code === 13 /* carriageReturn */ ||
-    code === 10 /* lineFeed */ ||
-    code === 11 /* verticalTab */
-  );
+  return code === 32 || code === 9 || code === 13 || code === 10 || code === 11;
 }
 
-/**
- * Simple tokenizer for templates, splits into words and punctuators.
- * @param {string} template
- * @param {DocumentLines} doc
- * @param {number} startOffset
- * @return {object[]}
- */
-export function tokenize(template, doc, startOffset) {
+function tokenize(template, doc, startOffset) {
   const tokens = [];
   let wordStart = -1;
   function pushToken(value, type, range) {
@@ -156,9 +131,7 @@ export function tokenize(template, doc, startOffset) {
   for (let i = 0; i < template.length; i++) {
     const code = template.charCodeAt(i);
     if (isAlphaNumeric(code)) {
-      if (wordStart < 0) {
-        wordStart = i;
-      }
+      if (wordStart < 0) wordStart = i;
     } else {
       if (wordStart >= 0) {
         pushToken(template.slice(wordStart, i), "word", [startOffset + wordStart, startOffset + i]);
@@ -178,14 +151,6 @@ export function tokenize(template, doc, startOffset) {
   return tokens;
 }
 
-/**
- * Builds the final token stream by filtering out tokens covered by comments
- * or text nodes, then merging text nodes back in sorted order.
- * @param {object[]} rawTokens
- * @param {object[]} comments
- * @param {object[]} textNodes
- * @return {object[]}
- */
 function buildTokenStream(rawTokens, comments, textNodes) {
   const commentIntervals = comments.map((c) => c.range).sort((a, b) => a[0] - b[0]);
   const textNodeIntervals = textNodes.map((t) => t.range).sort((a, b) => a[0] - b[0]);
@@ -196,14 +161,9 @@ function buildTokenStream(rawTokens, comments, textNodes) {
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
       const iv = intervals[mid];
-      if (iv[0] <= tokenRange[0] && iv[1] >= tokenRange[1]) {
-        return true;
-      }
-      if (iv[0] > tokenRange[0]) {
-        hi = mid - 1;
-      } else {
-        lo = mid + 1;
-      }
+      if (iv[0] <= tokenRange[0] && iv[1] >= tokenRange[1]) return true;
+      if (iv[0] > tokenRange[0]) hi = mid - 1;
+      else lo = mid + 1;
     }
     return false;
   }
@@ -224,21 +184,14 @@ function buildTokenStream(rawTokens, comments, textNodes) {
   while (ti < sortedTextNodes.length) {
     result.push(sortedTextNodes[ti++]);
   }
-
   return result;
 }
 
 /**
- * Parses a Glimmer template and produces a processed AST.
- *
- * @param {object} options
- * @param {string} options.templateContent - The template string to parse with glimmer
- * @param {DocumentLines} options.codeLines - DocumentLines for the full source file
- * @param {[number, number]} options.templateRange - Range [start, end] for the Template root node
- * @param {string} [options.tokenSource] - String to tokenize (defaults to templateContent)
- * @return {{ ast: object, comments: object[] }}
+ * Parse and transform a Glimmer template into an ESTree-compatible AST.
+ * Internal — consumed by toTree.
  */
-export function processGlimmerTemplate({ templateContent, codeLines, templateRange, tokenSource }) {
+export function _processTemplate(templateContent, codeLines, templateRange) {
   const offset = templateRange[0];
   const docLines = new DocumentLines(templateContent);
 
@@ -252,7 +205,11 @@ export function processGlimmerTemplate({ templateContent, codeLines, templateRan
   });
 
   const ast = glimmerPreprocess(templateContent, { mode: "codemod" });
-  const { allNodes, comments, textNodes, emptyTextNodes } = collectNodes(ast);
+  const allNodes = [];
+  const comments = [];
+  const textNodes = [];
+  const emptyTextNodes = [];
+  collectNodes(ast, null, allNodes, comments, textNodes, emptyTextNodes);
 
   for (const n of allNodes) {
     if (n.type === "PathExpression") {
@@ -288,6 +245,7 @@ export function processGlimmerTemplate({ templateContent, codeLines, templateRan
       n.blockParamNodes = n.blockParams.map((name) => ({
         type: "GlimmerBlockParam",
         name,
+        parent: n,
         range: [...n.range],
         start: n.range[0],
         end: n.range[1],
@@ -315,70 +273,8 @@ export function processGlimmerTemplate({ templateContent, codeLines, templateRan
     comment.type = "Block";
   }
 
-  ast.tokens = buildTokenStream(
-    tokenize(tokenSource || templateContent, codeLines, offset),
-    comments,
-    textNodes,
-  );
+  ast.tokens = buildTokenStream(tokenize(templateContent, codeLines, offset), comments, textNodes);
   ast.contents = templateContent;
 
   return { ast, comments };
-}
-
-/**
- * Traverses an ESTree+Glimmer AST. Merges the provided visitor keys
- * with Glimmer visitor keys for unified traversal.
- *
- * @param {Record<string, string[]>} visitorKeys - ESTree visitor keys
- * @param {object} node - Root AST node
- * @param {function} visitor - Callback receiving a path object
- */
-export function traverse(visitorKeys, node, visitor) {
-  const allVisitorKeys = { ...visitorKeys, ...buildGlimmerVisitorKeys() };
-  const queue = [];
-
-  queue.push({
-    node,
-    parent: null,
-    parentKey: null,
-    parentPath: null,
-    context: {},
-  });
-
-  while (queue.length > 0) {
-    const currentPath = queue.pop();
-
-    visitor(currentPath);
-
-    if (!currentPath.node) continue;
-
-    const keys = allVisitorKeys[currentPath.node.type];
-    if (!keys) continue;
-
-    for (const key of keys) {
-      const child = currentPath.node[key];
-
-      if (!child) {
-        continue;
-      } else if (Array.isArray(child)) {
-        for (const item of child) {
-          queue.push({
-            node: item,
-            parent: currentPath.node,
-            context: currentPath.context,
-            parentKey: key,
-            parentPath: currentPath,
-          });
-        }
-      } else {
-        queue.push({
-          node: child,
-          parent: currentPath.node,
-          context: currentPath.context,
-          parentKey: key,
-          parentPath: currentPath,
-        });
-      }
-    }
-  }
 }
