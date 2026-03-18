@@ -60,6 +60,10 @@ describe("AST snapshots — individual Glimmer nodes", () => {
         "contents": "hello",
         "tokens": [
           {
+            "type": "Punctuator",
+            "value": "<template>",
+          },
+          {
             "chars": "hello",
             "end": 25,
             "loc": {
@@ -97,7 +101,47 @@ describe("AST snapshots — individual Glimmer nodes", () => {
               ],
               "start": 10,
               "tokens": [
+                {
+                  "end": 20,
+                  "loc": {
+                    "end": {
+                      "column": 20,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 10,
+                      "line": 1,
+                    },
+                  },
+                  "range": [
+                    10,
+                    20,
+                  ],
+                  "start": 10,
+                  "type": "Punctuator",
+                  "value": "<template>",
+                },
                 [Circular],
+                {
+                  "end": 36,
+                  "loc": {
+                    "end": {
+                      "column": 36,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 25,
+                      "line": 1,
+                    },
+                  },
+                  "range": [
+                    25,
+                    36,
+                  ],
+                  "start": 25,
+                  "type": "Punctuator",
+                  "value": "</template>",
+                },
               ],
               "type": "GlimmerTemplate",
             },
@@ -108,6 +152,10 @@ describe("AST snapshots — individual Glimmer nodes", () => {
             "start": 20,
             "type": "GlimmerTextNode",
             "value": "hello",
+          },
+          {
+            "type": "Punctuator",
+            "value": "</template>",
           },
         ],
         "type": "GlimmerTemplate",
@@ -333,6 +381,10 @@ describe("AST snapshots — full templates (positions stripped)", () => {
         "tokens": [
           {
             "type": "Punctuator",
+            "value": "<template>",
+          },
+          {
+            "type": "Punctuator",
             "value": "<",
           },
           {
@@ -423,6 +475,26 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                 ],
                 "start": 17,
                 "tokens": [
+                  {
+                    "end": 27,
+                    "loc": {
+                      "end": {
+                        "column": 27,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 17,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      17,
+                      27,
+                    ],
+                    "start": 17,
+                    "type": "Punctuator",
+                    "value": "<template>",
+                  },
                   {
                     "end": 28,
                     "loc": {
@@ -578,6 +650,26 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                     "type": "Punctuator",
                     "value": ">",
                   },
+                  {
+                    "end": 52,
+                    "loc": {
+                      "end": {
+                        "column": 52,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 41,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      41,
+                      52,
+                    ],
+                    "start": 41,
+                    "type": "Punctuator",
+                    "value": "</template>",
+                  },
                 ],
                 "type": "GlimmerTemplate",
               },
@@ -667,6 +759,10 @@ describe("AST snapshots — full templates (positions stripped)", () => {
           {
             "type": "Punctuator",
             "value": ">",
+          },
+          {
+            "type": "Punctuator",
+            "value": "</template>",
           },
         ],
         "type": "GlimmerTemplate",
@@ -770,6 +866,10 @@ describe("AST snapshots — full templates (positions stripped)", () => {
         ],
         "contents": "<div class="main">{{@content}}</div>",
         "tokens": [
+          {
+            "type": "Punctuator",
+            "value": "<template>",
+          },
           {
             "type": "Punctuator",
             "value": "<",
@@ -950,6 +1050,26 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                   ],
                   "start": 10,
                   "tokens": [
+                    {
+                      "end": 20,
+                      "loc": {
+                        "end": {
+                          "column": 20,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 10,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        10,
+                        20,
+                      ],
+                      "start": 10,
+                      "type": "Punctuator",
+                      "value": "<template>",
+                    },
                     {
                       "end": 21,
                       "loc": {
@@ -1281,6 +1401,26 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                       "type": "Punctuator",
                       "value": ">",
                     },
+                    {
+                      "end": 67,
+                      "loc": {
+                        "end": {
+                          "column": 67,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 56,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        56,
+                        67,
+                      ],
+                      "start": 56,
+                      "type": "Punctuator",
+                      "value": "</template>",
+                    },
                   ],
                   "type": "GlimmerTemplate",
                 },
@@ -1407,6 +1547,10 @@ describe("AST snapshots — full templates (positions stripped)", () => {
             "type": "Punctuator",
             "value": ">",
           },
+          {
+            "type": "Punctuator",
+            "value": "</template>",
+          },
         ],
         "type": "GlimmerTemplate",
       }
@@ -1531,6 +1675,10 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
               "contents": "hello",
               "tokens": [
                 {
+                  "type": "Punctuator",
+                  "value": "<template>",
+                },
+                {
                   "chars": "hello",
                   "end": 25,
                   "loc": {
@@ -1568,7 +1716,47 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
                     ],
                     "start": 10,
                     "tokens": [
+                      {
+                        "end": 20,
+                        "loc": {
+                          "end": {
+                            "column": 20,
+                            "line": 1,
+                          },
+                          "start": {
+                            "column": 10,
+                            "line": 1,
+                          },
+                        },
+                        "range": [
+                          10,
+                          20,
+                        ],
+                        "start": 10,
+                        "type": "Punctuator",
+                        "value": "<template>",
+                      },
                       [Circular],
+                      {
+                        "end": 36,
+                        "loc": {
+                          "end": {
+                            "column": 36,
+                            "line": 1,
+                          },
+                          "start": {
+                            "column": 25,
+                            "line": 1,
+                          },
+                        },
+                        "range": [
+                          25,
+                          36,
+                        ],
+                        "start": 25,
+                        "type": "Punctuator",
+                        "value": "</template>",
+                      },
                     ],
                     "type": "GlimmerTemplate",
                   },
@@ -1579,6 +1767,10 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
                   "start": 20,
                   "type": "GlimmerTextNode",
                   "value": "hello",
+                },
+                {
+                  "type": "Punctuator",
+                  "value": "</template>",
                 },
               ],
               "type": "GlimmerTemplate",

@@ -93,6 +93,30 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
   }
 }
 
+/**
+ * Replace getter/setter properties with plain values on an object.
+ * Glimmer AST nodes use getters that form circular reference chains,
+ * which crash traversal libraries like esrecurse.
+ */
+function flattenGetters(obj) {
+  const proto = Object.getPrototypeOf(obj);
+  // Check own descriptors first, then prototype
+  for (const target of [obj, proto]) {
+    if (!target || target === Object.prototype) continue;
+    for (const key of Object.getOwnPropertyNames(target)) {
+      const desc = Object.getOwnPropertyDescriptor(target, key);
+      if (desc && (desc.get || desc.set)) {
+        try {
+          const value = obj[key];
+          Object.defineProperty(obj, key, { value, writable: true, enumerable: true, configurable: true });
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+}
+
 function removeFromParent(nodes) {
   for (const node of nodes) {
     const children =
@@ -282,6 +306,12 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
     }
 
     n.type = `Glimmer${n.type}`;
+
+    // Flatten getter-based properties from @glimmer/syntax into plain values.
+    // Glimmer AST nodes use getters (tag, name, original, etc.) that form
+    // circular reference chains. These crash scope analyzers like esrecurse.
+    flattenGetters(n);
+    if (n.head) flattenGetters(n.head);
   }
 
   removeFromParent(emptyTextNodes);
