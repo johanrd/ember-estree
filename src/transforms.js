@@ -45,11 +45,10 @@ export function buildGlimmerVisitorKeys() {
   if (_cachedGlimmerVisitorKeys) return _cachedGlimmerVisitorKeys;
   const keys = {};
   for (const [k, v] of Object.entries(glimmerVisitorKeys)) {
-    keys[`Glimmer${k}`] = [...v];
+    keys[`Glimmer${k}`] = v;
   }
-  if (!keys.GlimmerElementNode.includes("blockParamNodes")) {
-    keys.GlimmerElementNode.push("blockParamNodes", "parts");
-  }
+  // These need custom keys — copy the array before mutating
+  keys.GlimmerElementNode = [...keys.GlimmerElementNode, "blockParamNodes", "parts"];
   keys.GlimmerProgram = ["body", "blockParamNodes"];
   keys.GlimmerTemplate = ["body"];
   _cachedGlimmerVisitorKeys = keys;
@@ -99,34 +98,20 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
  * that cause infinite recursion in esrecurse. We capture the values
  * once and replace the getters with plain properties.
  */
+// Reusable descriptor to avoid allocating one per defineProperty call
+const _desc = { value: undefined, configurable: true, enumerable: true, writable: true };
+function defOwn(obj, key, val) {
+  _desc.value = val;
+  Object.defineProperty(obj, key, _desc);
+}
+
 function snapshotElementNode(n) {
-  // ElementNode.tag is a getter → path.head.original
-  // Capture as plain value before it can trigger circular access
-  const tag = n.tag;
-  Object.defineProperty(n, "tag", {
-    value: tag,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  defOwn(n, "tag", n.tag);
 }
 
 function snapshotVarHead(head) {
-  // VarHead.name and .original are getter/setters
-  const name = head.name;
-  const original = head.original;
-  Object.defineProperty(head, "name", {
-    value: name,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
-  Object.defineProperty(head, "original", {
-    value: original,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  defOwn(head, "name", head.name);
+  defOwn(head, "original", head.original);
 }
 
 function removeFromParent(nodes) {

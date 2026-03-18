@@ -253,18 +253,27 @@ export function toTree(source, options = {}) {
   }
 
   // Splice template tokens into the AST token stream.
-  // Replace all tokens that fall within each template's range.
+  // Tokens are sorted by range, so use binary search for O(log n) lookup.
   const astRoot = result.ast.program || result.ast;
   if (astRoot.tokens) {
     for (const ti of templateInfos) {
       const [tStart, tEnd] = ti.utf16Range;
-      const firstIdx = astRoot.tokens.findIndex((t) => t.range[0] >= tStart && t.range[0] < tEnd);
-      if (firstIdx < 0) continue;
+      const tokens = astRoot.tokens;
+      // Binary search for first token with range[0] >= tStart
+      let lo = 0;
+      let hi = tokens.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (tokens[mid].range[0] < tStart) lo = mid + 1;
+        else hi = mid;
+      }
+      const firstIdx = lo;
+      if (firstIdx >= tokens.length || tokens[firstIdx].range[0] >= tEnd) continue;
       let lastIdx = firstIdx;
-      while (lastIdx < astRoot.tokens.length && astRoot.tokens[lastIdx].range[1] <= tEnd) {
+      while (lastIdx < tokens.length && tokens[lastIdx].range[1] <= tEnd) {
         lastIdx++;
       }
-      astRoot.tokens.splice(firstIdx, lastIdx - firstIdx, ...ti.ast.tokens);
+      tokens.splice(firstIdx, lastIdx - firstIdx, ...ti.ast.tokens);
     }
   }
 
