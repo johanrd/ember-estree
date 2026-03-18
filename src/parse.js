@@ -4,7 +4,7 @@
  * 1. parse out the <template>...</template> regions (content-tag)
  * 2. create placeholder JS for the template regions (same char length)
  * 3. parse as js/ts — default: oxc-parser, or a custom parser via options
- * 4. single zimmerframe walk: splice in processed Glimmer ASTs
+ * 4. splice in processed Glimmer ASTs (zimmerframe for default, manual for custom)
  * 5. Merge Glimmer visitor keys into the result
  * 6. Done
  */
@@ -26,8 +26,7 @@ const preprocessor = new Preprocessor();
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
  * @param {[number, number]} [options.templateRange] - Position offset for templateOnly mode
  * @param {import("./transforms.js").DocumentLines} [options.codeLines] - DocumentLines for position mapping
- * @param {function} [options.parser] - Custom JS/TS parser: (jsCode, parserOptions) => { ast, scopeManager?, visitorKeys?, services?, ... }
- * @param {object}  [options.parserOptions] - Options forwarded to the custom parser
+ * @param {function} [options.parser] - Custom JS/TS parser: (source, parseResults, placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
  * @return {object}
  */
 export function toTree(source, options = {}) {
@@ -38,14 +37,12 @@ export function toTree(source, options = {}) {
   let parseResults = preprocessor.parse(source);
   let js = toPlaceholderJS(source, parseResults);
 
+  const useCustomParser = !!options.parser;
+
   // Parse the placeholder JS — use custom parser or default oxc
   let result;
-  if (options.parser) {
-    // Custom parser receives the source, parseResults, and placeholder JS.
-    // It can use its own placeholder format (e.g., backtick expressions for TS)
-    // or use the default TEMPLATE_TEMPLATE(...) format.
+  if (useCustomParser) {
     result = options.parser(source, parseResults, js);
-    // Normalize: ensure ast is at the top level
     if (!result.ast) {
       result = { ast: result };
     }
@@ -63,13 +60,11 @@ export function toTree(source, options = {}) {
     };
   }
 
-  const useCustomParser = !!options.parser;
-
   // If no templates, return early
   if (!parseResults.length) {
     if (useCustomParser) {
       result.visitorKeys = {
-        ...(result.visitorKeys || {}),
+        ...result.visitorKeys,
         ...buildGlimmerVisitorKeys(),
       };
       return result;
@@ -81,114 +76,148 @@ export function toTree(source, options = {}) {
   const allComments = [];
   const templateInfos = [];
 
-  // Build a set of template ranges for fast lookup
-  const templateRangeByStart = new Map(
-    parseResults.map((r) => [r.range.startUtf16Codepoint, r]),
-  );
+  // Build a map of template ranges for lookup
+  const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
 
-  // Single zimmerframe walk: find placeholders, splice in Glimmer ASTs
-  result.ast = walk(result.ast, null, {
-    _(node, { next }) {
-      // Match placeholders by node type (default oxc format) or by range (custom parser format)
-      const isPlaceholder = useCustomParser
-        ? templateRangeByStart.has(node.start) &&
-          (node.type === "ExpressionStatement" ||
-            node.type === "StaticBlock" ||
-            node.type === "TemplateLiteral" ||
-            node.type === "ExportDefaultDeclaration" ||
-            isExpressionPlaceholder(node) ||
-            isClassMemberPlaceholder(node))
-        : isExpressionPlaceholder(node) || isClassMemberPlaceholder(node);
+  // Process a matched placeholder node: create Glimmer AST and tokens
+  function processPlaceholder(parseResult) {
+    let templateContent = parseResult.contents;
+    let contentRange = [
+      parseResult.contentRange.startUtf16Codepoint,
+      parseResult.contentRange.endUtf16Codepoint,
+    ];
+    let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-      if (isPlaceholder) {
-        let range = node.range || [node.start, node.end];
-        if (node.type === "ExportDefaultDeclaration" && node.declaration) {
-          range = [node.declaration.start, node.declaration.end];
-        }
-        const parseResult = templateRangeByStart.get(range[0]);
-        if (
-          !parseResult ||
-          (parseResult.range.endUtf16Codepoint !== range[1] &&
-            parseResult.range.endUtf16Codepoint !== range[1] + 1)
-        ) {
-          next();
-          return;
-        }
+    const { ast, comments } = _processTemplate(templateContent, codeLines, contentRange);
 
-        let templateContent = parseResult.contents;
-        let contentRange = [
-          parseResult.contentRange.startUtf16Codepoint,
-          parseResult.contentRange.endUtf16Codepoint,
-        ];
-        let fullRange = [
-          parseResult.range.startUtf16Codepoint,
-          parseResult.range.endUtf16Codepoint,
-        ];
+    // Fix the Template root to cover the full <template>...</template> range
+    ast.range = fullRange;
+    ast.start = fullRange[0];
+    ast.end = fullRange[1];
+    ast.loc = {
+      start: codeLines.offsetToPosition(fullRange[0]),
+      end: codeLines.offsetToPosition(fullRange[1]),
+    };
 
-        const { ast, comments } = _processTemplate(templateContent, codeLines, contentRange);
+    // Add tokens for the <template> and </template> tags
+    const openEnd = contentRange[0];
+    const closeStart = contentRange[1];
+    const openTag = source.slice(fullRange[0], openEnd);
+    const closeTag = source.slice(closeStart, fullRange[1]);
+    const makeToken = (value, range) => ({
+      type: "Punctuator",
+      value,
+      range,
+      start: range[0],
+      end: range[1],
+      loc: {
+        start: codeLines.offsetToPosition(range[0]),
+        end: codeLines.offsetToPosition(range[1]),
+      },
+    });
+    ast.tokens = [
+      makeToken(openTag, [fullRange[0], openEnd]),
+      ...(ast.tokens || []),
+      makeToken(closeTag, [closeStart, fullRange[1]]),
+    ];
 
-        // Fix the Template root to cover the full <template>...</template> range
-        ast.range = fullRange;
-        ast.start = fullRange[0];
-        ast.end = fullRange[1];
-        ast.loc = {
-          start: codeLines.offsetToPosition(fullRange[0]),
-          end: codeLines.offsetToPosition(fullRange[1]),
-        };
+    allComments.push(...comments);
+    templateInfos.push({ utf16Range: fullRange, ast });
+    return ast;
+  }
 
-        // Add tokens for the <template> and </template> tags
-        const openEnd = contentRange[0];
-        const closeStart = contentRange[1];
-        const openTag = source.slice(fullRange[0], openEnd);
-        const closeTag = source.slice(closeStart, fullRange[1]);
-        const makeToken = (value, range) => ({
-          type: "Punctuator",
-          value,
-          range,
-          start: range[0],
-          end: range[1],
-          loc: {
-            start: codeLines.offsetToPosition(range[0]),
-            end: codeLines.offsetToPosition(range[1]),
-          },
-        });
-        ast.tokens = [
-          makeToken(openTag, [fullRange[0], openEnd]),
-          ...(ast.tokens || []),
-          makeToken(closeTag, [closeStart, fullRange[1]]),
-        ];
+  // Check if a node matches a template range
+  function matchPlaceholder(node) {
+    let range = node.range || [node.start, node.end];
+    if (node.type === "ExportDefaultDeclaration" && node.declaration) {
+      const decl = node.declaration;
+      range = decl.range || [decl.start, decl.end];
+    }
+    const parseResult = templateRangeByStart.get(range[0]);
+    if (
+      !parseResult ||
+      (parseResult.range.endUtf16Codepoint !== range[1] &&
+        parseResult.range.endUtf16Codepoint !== range[1] + 1)
+    ) {
+      return null;
+    }
+    return parseResult;
+  }
 
-        allComments.push(...comments);
-        templateInfos.push({ utf16Range: fullRange, ast });
+  if (useCustomParser) {
+    // Custom parser path: mutate the parser's AST in-place.
+    // Can't use zimmerframe (it returns immutable copies that don't reflect Object.assign).
+    const placeholderTypes = new Set([
+      "ExpressionStatement",
+      "StaticBlock",
+      "TemplateLiteral",
+      "ExportDefaultDeclaration",
+    ]);
 
-        // When using a custom parser, we need to replace the node in-place
-        // (the node is part of the parser's AST, not a zimmerframe copy)
-        if (options.parser) {
+    function visitNode(node) {
+      if (!node || typeof node !== "object" || !node.type) return;
+
+      if (
+        placeholderTypes.has(node.type) ||
+        isExpressionPlaceholder(node) ||
+        isClassMemberPlaceholder(node)
+      ) {
+        const parseResult = matchPlaceholder(node);
+        if (parseResult) {
+          const ast = processPlaceholder(parseResult);
           for (const key of Object.keys(node)) {
             if (!(key in ast) && key !== "parent") {
               delete node[key];
             }
           }
           Object.assign(node, ast);
-          next();
-          return;
+          return; // Don't recurse into the Glimmer AST
         }
-
-        return ast;
       }
-      next();
-    },
-  });
 
-  // Splice template tokens into the AST token stream
+      // Recurse into children
+      for (const key of Object.keys(node)) {
+        if (key === "parent" || key === "loc") continue;
+        const child = node[key];
+        if (Array.isArray(child)) {
+          for (const item of child) {
+            visitNode(item);
+          }
+        } else if (child && typeof child === "object" && child.type) {
+          visitNode(child);
+        }
+      }
+    }
+
+    visitNode(result.ast);
+  } else {
+    // Default oxc path: use zimmerframe walk (returns new tree)
+    result.ast = walk(result.ast, null, {
+      _(node, { next }) {
+        if (isExpressionPlaceholder(node) || isClassMemberPlaceholder(node)) {
+          const parseResult = matchPlaceholder(node);
+          if (parseResult) {
+            return processPlaceholder(parseResult);
+          }
+        }
+        next();
+      },
+    });
+  }
+
+  // Splice template tokens into the AST token stream.
+  // Replace all tokens that fall within each template's range.
   const astRoot = result.ast.program || result.ast;
   if (astRoot.tokens) {
     for (const ti of templateInfos) {
-      const firstIdx = astRoot.tokens.findIndex((t) => t.range[0] === ti.utf16Range[0]);
-      const lastIdx = astRoot.tokens.findIndex((t) => t.range[1] === ti.utf16Range[1]);
-      if (firstIdx >= 0 && lastIdx >= 0) {
-        astRoot.tokens.splice(firstIdx, lastIdx - firstIdx + 1, ...ti.ast.tokens);
+      const [tStart, tEnd] = ti.utf16Range;
+      const firstIdx = astRoot.tokens.findIndex((t) => t.range[0] >= tStart && t.range[0] < tEnd);
+      if (firstIdx < 0) continue;
+      let lastIdx = firstIdx;
+      while (lastIdx < astRoot.tokens.length && astRoot.tokens[lastIdx].range[1] <= tEnd) {
+        lastIdx++;
       }
+      astRoot.tokens.splice(firstIdx, lastIdx - firstIdx, ...ti.ast.tokens);
     }
   }
 
@@ -200,17 +229,15 @@ export function toTree(source, options = {}) {
 
   // Merge Glimmer visitor keys
   result.visitorKeys = {
-    ...(result.visitorKeys || {}),
+    ...result.visitorKeys,
     ...buildGlimmerVisitorKeys(),
   };
 
-  // Custom parser: return full result with templateInfos for scope registration
   if (useCustomParser) {
     result.templateInfos = templateInfos;
     return result;
   }
 
-  // Default: return the AST directly (backward-compatible)
   return result.ast;
 }
 
@@ -254,9 +281,6 @@ function isClassMemberPlaceholder(node) {
  *
  * Expression templates become:  TEMPLATE_TEMPLATE(`...`)
  * Class member templates become: [_TEMPLATE_(`...`)] = 0;
- *
- * Both use exactly 21 characters for wrappers, matching
- * <template> (10) + </template> (11) = 21 character overhead.
  */
 export function toPlaceholderJS(source, parseResults) {
   let result = source;

@@ -108,7 +108,12 @@ function flattenGetters(obj) {
       if (desc && (desc.get || desc.set)) {
         try {
           const value = obj[key];
-          Object.defineProperty(obj, key, { value, writable: true, enumerable: true, configurable: true });
+          Object.defineProperty(obj, key, {
+            value,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+          });
         } catch {
           // ignore
         }
@@ -308,10 +313,10 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
     n.type = `Glimmer${n.type}`;
 
     // Flatten getter-based properties from @glimmer/syntax into plain values.
-    // Glimmer AST nodes use getters (tag, name, original, etc.) that form
-    // circular reference chains. These crash scope analyzers like esrecurse.
-    flattenGetters(n);
-    if (n.head) flattenGetters(n.head);
+    // Only ElementNode and PathExpression.head have circular getter chains
+    // that crash scope analyzers like esrecurse.
+    if (n.type === "GlimmerElementNode") flattenGetters(n);
+    if (n.type === "GlimmerPathExpression" && n.head) flattenGetters(n.head);
   }
 
   removeFromParent(emptyTextNodes);
