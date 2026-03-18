@@ -242,15 +242,32 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
     }
 
     if ("blockParams" in n && Array.isArray(n.blockParams)) {
-      n.blockParamNodes = n.blockParams.map((name) => ({
-        type: "GlimmerBlockParam",
-        name,
-        parent: n,
-        range: [...n.range],
-        start: n.range[0],
-        end: n.range[1],
-        loc: toFileLoc(n.range),
-      }));
+      // In codemod mode, Block.params contains VarHead nodes with real positions
+      if (n.params && n.params.length === n.blockParams.length) {
+        n.blockParamNodes = n.params.map((p) => {
+          const range = toFileRange(p.loc);
+          return {
+            ...p,
+            type: "GlimmerBlockParam",
+            name: p.original || p.name,
+            parent: n,
+            range,
+            start: range[0],
+            end: range[1],
+            loc: toFileLoc(range),
+          };
+        });
+      } else {
+        n.blockParamNodes = n.blockParams.map((name) => ({
+          type: "GlimmerBlockParam",
+          name,
+          parent: n,
+          range: [...n.range],
+          start: n.range[0],
+          end: n.range[1],
+          loc: toFileLoc(n.range),
+        }));
+      }
     }
 
     if (
