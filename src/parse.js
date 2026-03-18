@@ -2,9 +2,9 @@
  * The Strategy:
  *
  * 1. parse out the <template>...</template> regions (content-tag)
- * 2. create placeholder JS for the template regions (same char length)
+ * 2. create placeholder JS for the template regions (backtick/static-block, same char length)
  * 3. parse as js/ts — default: oxc-parser, or a custom parser via options
- * 4. splice in processed Glimmer ASTs (zimmerframe for default, manual for custom)
+ * 4. splice in processed Glimmer ASTs, invoking visitors during traversal
  * 5. Merge Glimmer visitor keys into the result
  * 6. Done
  */
@@ -27,6 +27,7 @@ const preprocessor = new Preprocessor();
  * @param {[number, number]} [options.templateRange] - Position offset for templateOnly mode
  * @param {import("./transforms.js").DocumentLines} [options.codeLines] - DocumentLines for position mapping
  * @param {function} [options.parser] - Custom JS/TS parser: (source, parseResults, placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
+ * @param {object}  [options.visitors] - Callbacks invoked for Glimmer nodes during traversal
  * @return {object}
  */
 export function toTree(source, options = {}) {
@@ -38,6 +39,7 @@ export function toTree(source, options = {}) {
   let js = toPlaceholderJS(source, parseResults);
 
   const useCustomParser = !!options.parser;
+  const visitors = options.visitors || null;
 
   // Parse the placeholder JS — use custom parser or default oxc
   let result;
@@ -75,6 +77,7 @@ export function toTree(source, options = {}) {
   const codeLines = new DocumentLines(source);
   const allComments = [];
   const templateInfos = [];
+  const glimmerKeys = buildGlimmerVisitorKeys();
 
   // Build a map of template ranges for lookup
   const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
@@ -144,24 +147,53 @@ export function toTree(source, options = {}) {
     return parseResult;
   }
 
-  if (useCustomParser) {
-    // Custom parser path: mutate the parser's AST in-place.
-    // Can't use zimmerframe (it returns immutable copies that don't reflect Object.assign).
-    const placeholderTypes = new Set([
-      "ExpressionStatement",
-      "StaticBlock",
-      "TemplateLiteral",
-      "ExportDefaultDeclaration",
-    ]);
+  // Invoke visitors for Glimmer nodes during traversal
+  function visitGlimmerNode(node, path) {
+    if (!visitors || !node.type || !node.type.startsWith("Glimmer")) return;
+    const handler = visitors[node.type];
+    if (handler) handler(node, path);
+    if ("blockParams" in node && visitors.GlimmerBlockParams) {
+      visitors.GlimmerBlockParams(node, path);
+    }
+  }
 
-    function visitNode(node) {
+  // Walk Glimmer subtree, invoking visitors with full path context
+  function walkGlimmerTree(node, parentPath) {
+    if (!node || typeof node !== "object" || !node.type) return;
+    const path = { node, parent: parentPath?.node ?? null, parentPath };
+    visitGlimmerNode(node, path);
+
+    const keys = glimmerKeys[node.type];
+    if (!keys) return;
+    for (const key of keys) {
+      const child = node[key];
+      if (!child) continue;
+      if (Array.isArray(child)) {
+        for (const item of child) {
+          walkGlimmerTree(item, path);
+        }
+      } else if (typeof child === "object" && child.type) {
+        walkGlimmerTree(child, path);
+      }
+    }
+  }
+
+  // Placeholder node types (backtick/static-block format)
+  const placeholderTypes = new Set([
+    "ExpressionStatement",
+    "StaticBlock",
+    "TemplateLiteral",
+    "ExportDefaultDeclaration",
+  ]);
+
+  if (useCustomParser) {
+    // Custom parser path: mutate the parser's AST in-place, invoke visitors
+    function visitNode(node, parentPath) {
       if (!node || typeof node !== "object" || !node.type) return;
 
-      if (
-        placeholderTypes.has(node.type) ||
-        isExpressionPlaceholder(node) ||
-        isClassMemberPlaceholder(node)
-      ) {
+      const path = { node, parent: parentPath?.node ?? null, parentPath };
+
+      if (placeholderTypes.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
@@ -171,30 +203,34 @@ export function toTree(source, options = {}) {
             }
           }
           Object.assign(node, ast);
-          return; // Don't recurse into the Glimmer AST
+          // Walk the Glimmer subtree with visitors
+          if (visitors) walkGlimmerTree(node, parentPath);
+          return;
         }
       }
 
-      // Recurse into children
+      // Recurse into JS children
       for (const key of Object.keys(node)) {
         if (key === "parent" || key === "loc") continue;
         const child = node[key];
         if (Array.isArray(child)) {
           for (const item of child) {
-            visitNode(item);
+            if (item && typeof item === "object" && item.type) {
+              visitNode(item, path);
+            }
           }
         } else if (child && typeof child === "object" && child.type) {
-          visitNode(child);
+          visitNode(child, path);
         }
       }
     }
 
-    visitNode(result.ast);
+    visitNode(result.ast, null);
   } else {
     // Default oxc path: use zimmerframe walk (returns new tree)
     result.ast = walk(result.ast, null, {
       _(node, { next }) {
-        if (isExpressionPlaceholder(node) || isClassMemberPlaceholder(node)) {
+        if (placeholderTypes.has(node.type)) {
           const parseResult = matchPlaceholder(node);
           if (parseResult) {
             return processPlaceholder(parseResult);
@@ -203,6 +239,13 @@ export function toTree(source, options = {}) {
         next();
       },
     });
+
+    // Walk Glimmer subtrees for visitors (after zimmerframe splicing)
+    if (visitors) {
+      for (const ti of templateInfos) {
+        walkGlimmerTree(ti.ast, null);
+      }
+    }
   }
 
   // Splice template tokens into the AST token stream.
@@ -230,7 +273,7 @@ export function toTree(source, options = {}) {
   // Merge Glimmer visitor keys
   result.visitorKeys = {
     ...result.visitorKeys,
-    ...buildGlimmerVisitorKeys(),
+    ...glimmerKeys,
   };
 
   if (useCustomParser) {
@@ -260,58 +303,41 @@ function toTemplateTree(source, options) {
   return { ast, comments };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
-
-function isExpressionPlaceholder(node) {
-  return node.type === "CallExpression" && node.callee?.name === "TEMPLATE_TEMPLATE";
-}
-
-function isClassMemberPlaceholder(node) {
-  return (
-    node.type === "PropertyDefinition" &&
-    node.computed &&
-    node.key?.type === "CallExpression" &&
-    node.key.callee?.name === "_TEMPLATE_"
-  );
-}
+// ── Placeholder JS ────────────────────────────────────────────────────
 
 /**
  * Replaces <template>...</template> regions with placeholder expressions
- * of the same character length that are valid JavaScript.
+ * of the same character length that are valid JS/TS.
  *
- * Expression templates become:  TEMPLATE_TEMPLATE(`...`)
- * Class member templates become: [_TEMPLATE_(`...`)] = 0;
+ * Expression templates become:  `content          ` (backtick, space-padded)
+ * Class member templates become: static{`content  `} (static block, space-padded)
+ *
+ * This format is compatible with all JS/TS parsers including
+ * oxc-parser, @typescript-eslint/parser, and @babel/eslint-parser.
  */
 export function toPlaceholderJS(source, parseResults) {
   let result = source;
-  let offset = 0;
+  for (const pr of [...parseResults].reverse()) {
+    const start = pr.range.startUtf16Codepoint;
+    const end = pr.range.endUtf16Codepoint;
+    const tplLength = end - start;
+    const content = source
+      .slice(pr.contentRange.startUtf16Codepoint, pr.contentRange.endUtf16Codepoint)
+      .replace(/`/g, "\\`")
+      .replace(/\$/g, "\\$");
 
-  for (let pr of parseResults) {
-    let start = pr.range.startUtf16Codepoint;
-    let end = pr.range.endUtf16Codepoint;
-
-    let openingTag, closingTag;
-    switch (pr.type) {
-      case "expression":
-        openingTag = "TEMPLATE_TEMPLATE(`";
-        closingTag = "`)";
-        break;
-      case "class-member":
-        openingTag = "[_TEMPLATE_(`";
-        closingTag = "`)] = 0;";
-        break;
+    let replacement;
+    if (pr.type === "class-member") {
+      const overhead = "static{`".length + "`}".length; // 10
+      const spaces = tplLength - content.length - overhead;
+      replacement = `static{\`${content}${" ".repeat(Math.max(0, spaces))}\`}`;
+    } else {
+      const overhead = "`".length + "`".length; // 2
+      const spaces = tplLength - content.length - overhead;
+      replacement = `\`${content}${" ".repeat(Math.max(0, spaces))}\``;
     }
 
-    let content = source.slice(
-      pr.contentRange.startUtf16Codepoint,
-      pr.contentRange.endUtf16Codepoint,
-    );
-
-    let replacement = openingTag + content + closingTag;
-
-    result = result.slice(0, start + offset) + replacement + result.slice(end + offset);
-    offset += replacement.length - (end - start);
+    result = result.slice(0, start) + replacement + result.slice(end);
   }
-
   return result;
 }
