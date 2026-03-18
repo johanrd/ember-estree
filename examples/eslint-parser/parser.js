@@ -12,7 +12,7 @@
  * @see https://eslint.org/docs/latest/extend/custom-parsers
  * @see https://github.com/ember-tooling/ember-eslint-parser
  */
-import { parse, buildGlimmerVisitorKeys, DocumentLines } from "ember-estree";
+import { parse, glimmerVisitorKeys, DocumentLines } from "ember-estree";
 import { analyze, Reference, Scope, Variable, Definition } from "eslint-scope";
 import { isKeyword } from "@glimmer/syntax";
 
@@ -52,7 +52,7 @@ function addRangesAndLocs(node, docLines, visited = new Set()) {
  */
 function mergeVisitorKeys() {
   return {
-    ...buildGlimmerVisitorKeys(),
+    ...glimmerVisitorKeys,
   };
 }
 

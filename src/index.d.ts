@@ -77,10 +77,10 @@ export function parse(source: string, options?: ParseOptions): FileNode | Templa
 export function print(node: ASTNode): string;
 
 /**
- * Build and return the Glimmer visitor keys map with a `"Glimmer"` prefix.
- * Result is cached after the first call.
+ * Glimmer visitor keys map with `"Glimmer"` prefix on every key.
+ * Computed once at module load.
  */
-export function buildGlimmerVisitorKeys(): Record<string, string[]>;
+export const glimmerVisitorKeys: Record<string, string[]>;
 
 /**
  * Recursively remove all `parent` references from an AST.

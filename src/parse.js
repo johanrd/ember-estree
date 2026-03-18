@@ -13,7 +13,11 @@ import { parseSync } from "oxc-parser";
 import { Preprocessor } from "content-tag";
 import { walk } from "zimmerframe";
 
-import { _processTemplate, DocumentLines, buildGlimmerVisitorKeys } from "./transforms.js";
+import {
+  _processTemplate,
+  DocumentLines,
+  glimmerVisitorKeys as glimmerKeys,
+} from "./transforms.js";
 
 const preprocessor = new Preprocessor();
 
@@ -67,7 +71,7 @@ export function toTree(source, options = {}) {
     if (useCustomParser) {
       result.visitorKeys = {
         ...result.visitorKeys,
-        ...buildGlimmerVisitorKeys(),
+        ...glimmerKeys,
       };
       return result;
     }
@@ -77,7 +81,7 @@ export function toTree(source, options = {}) {
   const codeLines = new DocumentLines(source);
   const allComments = [];
   const templateInfos = [];
-  const glimmerKeys = buildGlimmerVisitorKeys();
+  // glimmerKeys imported at top of file
 
   // Build a map of template ranges for lookup
   const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
@@ -328,7 +332,7 @@ function toTemplateTree(source, options) {
  * This format is compatible with all JS/TS parsers including
  * oxc-parser, @typescript-eslint/parser, and @babel/eslint-parser.
  */
-export function toPlaceholderJS(source, parseResults) {
+function toPlaceholderJS(source, parseResults) {
   // Build result in forward order using parts array (avoids intermediate string allocations)
   const parts = [];
   let cursor = 0;

@@ -3,7 +3,7 @@
  */
 
 import {
-  visitorKeys as glimmerVisitorKeys,
+  visitorKeys as rawGlimmerVisitorKeys,
   preprocess as glimmerPreprocess,
 } from "@glimmer/syntax";
 
@@ -38,22 +38,19 @@ export class DocumentLines {
 }
 
 /**
- * Build the Glimmer visitor keys map with "Glimmer" prefix.
+ * Glimmer visitor keys map with "Glimmer" prefix.
+ * Computed once at module load.
  */
-let _cachedGlimmerVisitorKeys = null;
-export function buildGlimmerVisitorKeys() {
-  if (_cachedGlimmerVisitorKeys) return _cachedGlimmerVisitorKeys;
+export const glimmerVisitorKeys = (() => {
   const keys = {};
-  for (const [k, v] of Object.entries(glimmerVisitorKeys)) {
+  for (const [k, v] of Object.entries(rawGlimmerVisitorKeys)) {
     keys[`Glimmer${k}`] = v;
   }
-  // These need custom keys — copy the array before mutating
   keys.GlimmerElementNode = [...keys.GlimmerElementNode, "blockParamNodes", "parts"];
   keys.GlimmerProgram = ["body", "blockParamNodes"];
   keys.GlimmerTemplate = ["body"];
-  _cachedGlimmerVisitorKeys = keys;
   return keys;
-}
+})();
 
 // ── Internal helpers ──────────────────────────────────────────────────
 
@@ -75,7 +72,7 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
       emptyTextNodes.push(node);
     }
   }
-  const keys = glimmerVisitorKeys[node.type];
+  const keys = rawGlimmerVisitorKeys[node.type];
   if (!keys) return;
   for (const key of keys) {
     const child = node[key];
