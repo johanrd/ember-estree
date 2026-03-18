@@ -187,7 +187,10 @@ export function toTree(source, options = {}) {
   ]);
 
   if (useCustomParser) {
-    // Custom parser path: mutate the parser's AST in-place, invoke visitors
+    // Custom parser path: mutate the parser's AST in-place, invoke visitors.
+    // Use the parser's visitorKeys to traverse efficiently (avoids Object.keys).
+    const parserVisitorKeys = result.visitorKeys || {};
+
     function visitNode(node, parentPath) {
       if (!node || typeof node !== "object" || !node.type) return;
 
@@ -203,23 +206,24 @@ export function toTree(source, options = {}) {
             }
           }
           Object.assign(node, ast);
-          // Walk the Glimmer subtree with visitors
           if (visitors) walkGlimmerTree(node, parentPath);
           return;
         }
       }
 
-      // Recurse into JS children
-      for (const key of Object.keys(node)) {
-        if (key === "parent" || key === "loc") continue;
+      // Use visitorKeys for efficient child traversal
+      const keys = parserVisitorKeys[node.type];
+      if (!keys) return;
+      for (const key of keys) {
         const child = node[key];
+        if (!child) continue;
         if (Array.isArray(child)) {
           for (const item of child) {
             if (item && typeof item === "object" && item.type) {
               visitNode(item, path);
             }
           }
-        } else if (child && typeof child === "object" && child.type) {
+        } else if (typeof child === "object" && child.type) {
           visitNode(child, path);
         }
       }
@@ -316,28 +320,33 @@ function toTemplateTree(source, options) {
  * oxc-parser, @typescript-eslint/parser, and @babel/eslint-parser.
  */
 export function toPlaceholderJS(source, parseResults) {
-  let result = source;
-  for (const pr of [...parseResults].reverse()) {
+  // Build result in forward order using parts array (avoids intermediate string allocations)
+  const parts = [];
+  let cursor = 0;
+
+  for (const pr of parseResults) {
     const start = pr.range.startUtf16Codepoint;
     const end = pr.range.endUtf16Codepoint;
     const tplLength = end - start;
+
+    parts.push(source.slice(cursor, start));
+
     const content = source
       .slice(pr.contentRange.startUtf16Codepoint, pr.contentRange.endUtf16Codepoint)
       .replace(/`/g, "\\`")
       .replace(/\$/g, "\\$");
 
-    let replacement;
     if (pr.type === "class-member") {
-      const overhead = "static{`".length + "`}".length; // 10
-      const spaces = tplLength - content.length - overhead;
-      replacement = `static{\`${content}${" ".repeat(Math.max(0, spaces))}\`}`;
+      const spaces = tplLength - content.length - 10; // "static{`" + "`}" = 10
+      parts.push(`static{\`${content}${" ".repeat(Math.max(0, spaces))}\`}`);
     } else {
-      const overhead = "`".length + "`".length; // 2
-      const spaces = tplLength - content.length - overhead;
-      replacement = `\`${content}${" ".repeat(Math.max(0, spaces))}\``;
+      const spaces = tplLength - content.length - 2; // "`" + "`" = 2
+      parts.push(`\`${content}${" ".repeat(Math.max(0, spaces))}\``);
     }
 
-    result = result.slice(0, start) + replacement + result.slice(end);
+    cursor = end;
   }
-  return result;
+
+  parts.push(source.slice(cursor));
+  return parts.join("");
 }

@@ -94,32 +94,39 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
 }
 
 /**
- * Replace getter/setter properties with plain values on an object.
- * Glimmer AST nodes use getters that form circular reference chains,
- * which crash traversal libraries like esrecurse.
+ * Snapshot getter-heavy properties as plain values on a glimmer node.
+ * @glimmer/syntax nodes use getter chains (tag→path→head→original)
+ * that cause infinite recursion in esrecurse. We capture the values
+ * once and replace the getters with plain properties.
  */
-function flattenGetters(obj) {
-  const proto = Object.getPrototypeOf(obj);
-  // Check own descriptors first, then prototype
-  for (const target of [obj, proto]) {
-    if (!target || target === Object.prototype) continue;
-    for (const key of Object.getOwnPropertyNames(target)) {
-      const desc = Object.getOwnPropertyDescriptor(target, key);
-      if (desc && (desc.get || desc.set)) {
-        try {
-          const value = obj[key];
-          Object.defineProperty(obj, key, {
-            value,
-            writable: true,
-            enumerable: true,
-            configurable: true,
-          });
-        } catch {
-          // ignore
-        }
-      }
-    }
-  }
+function snapshotElementNode(n) {
+  // ElementNode.tag is a getter → path.head.original
+  // Capture as plain value before it can trigger circular access
+  const tag = n.tag;
+  Object.defineProperty(n, "tag", {
+    value: tag,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
+
+function snapshotVarHead(head) {
+  // VarHead.name and .original are getter/setters
+  const name = head.name;
+  const original = head.original;
+  Object.defineProperty(head, "name", {
+    value: name,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+  Object.defineProperty(head, "original", {
+    value: original,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
 }
 
 function removeFromParent(nodes) {
@@ -254,31 +261,34 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
     n.loc = toFileLoc(n.range);
 
     if (n.type === "ElementNode") {
+      snapshotElementNode(n);
       n.name = n.tag;
-      n.parts = [n.path.head].map((p) => {
-        const range = toFileRange(p.loc);
-        return {
-          ...p,
+      const p = n.path.head;
+      snapshotVarHead(p);
+      const partRange = toFileRange(p.loc);
+      n.parts = [
+        {
+          type: "GlimmerElementNodePart",
+          original: p.original,
           name: p.original,
           parent: n,
-          type: "GlimmerElementNodePart",
-          range,
-          start: range[0],
-          end: range[1],
-          loc: toFileLoc(range),
-        };
-      });
+          range: partRange,
+          start: partRange[0],
+          end: partRange[1],
+          loc: toFileLoc(partRange),
+        },
+      ];
     }
 
     if ("blockParams" in n && Array.isArray(n.blockParams)) {
-      // In codemod mode, Block.params contains VarHead nodes with real positions
       if (n.params && n.params.length === n.blockParams.length) {
         n.blockParamNodes = n.params.map((p) => {
+          snapshotVarHead(p);
           const range = toFileRange(p.loc);
           return {
-            ...p,
             type: "GlimmerBlockParam",
             name: p.original || p.name,
+            original: p.original,
             parent: n,
             range,
             start: range[0],
@@ -291,7 +301,7 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
           type: "GlimmerBlockParam",
           name,
           parent: n,
-          range: [...n.range],
+          range: [n.range[0], n.range[1]],
           start: n.range[0],
           end: n.range[1],
           loc: toFileLoc(n.range),
@@ -312,11 +322,8 @@ export function _processTemplate(templateContent, codeLines, templateRange) {
 
     n.type = `Glimmer${n.type}`;
 
-    // Flatten getter-based properties from @glimmer/syntax into plain values.
-    // Only ElementNode and PathExpression.head have circular getter chains
-    // that crash scope analyzers like esrecurse.
-    if (n.type === "GlimmerElementNode") flattenGetters(n);
-    if (n.type === "GlimmerPathExpression" && n.head) flattenGetters(n.head);
+    // Snapshot PathExpression.head getters (name/original)
+    if (n.type === "GlimmerPathExpression" && n.head) snapshotVarHead(n.head);
   }
 
   removeFromParent(emptyTextNodes);
