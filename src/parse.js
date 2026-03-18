@@ -4,7 +4,7 @@
  * 1. parse out the <template>...</template> regions
  *    - we haven't shipped "content-tag" through TC39, so for now, gjs and gts are invalid JavaScript
  *
- * 2. create a new string/contents of the file with a placeholder for the template regisions
+ * 2. create a new string/contents of the file with a placeholder for the template regions
  *    - this will be used later to splice in the Template AST Nodes
  *    - the placeholder should be the same dimensions as the template region
  *
@@ -26,11 +26,10 @@
  */
 
 import { parseSync } from "oxc-parser";
-import templateRecast from "ember-template-recast";
 import { Preprocessor } from "content-tag";
 import { walk } from "zimmerframe";
 
-import { processGlimmerTemplate } from "./transforms.js";
+import { processGlimmerTemplate, DocumentLines } from "./transforms.js";
 
 const preprocessor = new Preprocessor();
 
@@ -55,6 +54,8 @@ export function toTree(source, options = {}) {
     end: oxcResult.program.end,
   };
 
+  const codeLines = new DocumentLines(source);
+
   // content-tag v4 provides UTF-16 codepoint offsets that match
   // JavaScript string indices and oxc-parser character offsets directly,
   // so no byte-to-character conversion is needed.
@@ -67,20 +68,33 @@ export function toTree(source, options = {}) {
           );
         });
 
-        let content = parseResult.contents;
-        let templateAST = templateRecast.parse(content);
-
-        let contentOffset = parseResult.contentRange.startUtf16Codepoint;
-        let templateRange = [
+        let templateContent = parseResult.contents;
+        let contentRange = [
+          parseResult.contentRange.startUtf16Codepoint,
+          parseResult.contentRange.endUtf16Codepoint,
+        ];
+        let fullRange = [
           parseResult.range.startUtf16Codepoint,
           parseResult.range.endUtf16Codepoint,
         ];
 
-        return processGlimmerTemplate(templateAST, {
-          contentOffset,
-          templateRange,
-          source,
+        // Parse inner content with positions relative to the content start
+        const { ast } = processGlimmerTemplate({
+          templateContent,
+          codeLines,
+          templateRange: contentRange,
         });
+
+        // Fix the Template root to cover the full <template>...</template> range
+        ast.range = fullRange;
+        ast.start = fullRange[0];
+        ast.end = fullRange[1];
+        ast.loc = {
+          start: codeLines.offsetToPosition(fullRange[0]),
+          end: codeLines.offsetToPosition(fullRange[1]),
+        };
+
+        return ast;
       }
       next();
     },

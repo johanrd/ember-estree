@@ -1,18 +1,22 @@
 /**
  * Glimmer AST → ESTree transform utilities.
  *
- * Ported from ember-eslint-parser's transforms.js, adapted for
- * ember-estree's ESM architecture. Handles:
- *
+ * Handles:
+ *  - Parsing raw template content via @glimmer/syntax
  *  - Type prefixing (all Glimmer types get a "Glimmer" prefix)
  *  - Range / loc fixing (converts template-local positions to file-level)
  *  - ElementNode `parts` and `name` fields
  *  - blockParams → virtual node creation
  *  - Empty hash nullification
  *  - Empty text node removal
+ *  - Tokenization and token stream building
  */
 
-import { traverse, visitorKeys as glimmerVisitorKeys } from "@glimmer/syntax";
+import {
+  traverse as glimmerTraverse,
+  visitorKeys as glimmerVisitorKeys,
+  preprocess as glimmerPreprocess,
+} from "@glimmer/syntax";
 
 /**
  * Converts between character offsets and line/column positions.
@@ -53,7 +57,7 @@ function collectNodes(ast) {
   const textNodes = [];
   const emptyTextNodes = [];
 
-  traverse(ast, {
+  glimmerTraverse(ast, {
     All(node, path) {
       node.parent = path.parentNode;
       allNodes.push(node);
@@ -108,97 +112,189 @@ export function buildGlimmerVisitorKeys() {
   return keys;
 }
 
+function isAlphaNumeric(code) {
+  return !(
+    !(code > 47 && code < 58) && // numeric (0-9)
+    !(code > 64 && code < 91) && // upper alpha (A-Z)
+    !(code > 96 && code < 123)
+  );
+}
+
+function isWhiteSpaceCode(code) {
+  return (
+    code === 32 /* space */ ||
+    code === 9 /* tab */ ||
+    code === 13 /* carriageReturn */ ||
+    code === 10 /* lineFeed */ ||
+    code === 11 /* verticalTab */
+  );
+}
+
 /**
- * Process a Glimmer AST into an ESTree-compatible form.
- *
- * @param {object} templateAST - The Glimmer AST (from ember-template-recast / @glimmer/syntax)
- * @param {object} opts
- * @param {number} opts.contentOffset - Byte offset where the template content begins in the full source
- * @param {[number, number]} opts.templateRange - [start, end] byte range of the full <template>...</template> block
- * @param {string} opts.source - The full source code
- * @returns {object} The transformed AST
+ * Simple tokenizer for templates, splits into words and punctuators.
+ * @param {string} template
+ * @param {DocumentLines} doc
+ * @param {number} startOffset
+ * @return {object[]}
  */
-export function processGlimmerTemplate(templateAST, { contentOffset, templateRange, source }) {
-  // The Glimmer AST locs are relative to the inner template content only
-  const closingTagLen = "</template>".length;
-  const contentEnd = templateRange[1] - closingTagLen;
-  const contentStr = source.substring(contentOffset, contentEnd);
-  const contentDoc = new DocumentLines(contentStr);
-  const sourceDoc = new DocumentLines(source);
-
-  const toFileRange = (loc) => {
-    const locObj = loc.toJSON ? loc.toJSON() : loc;
-    return [
-      contentOffset + contentDoc.positionToOffset(locObj.start),
-      contentOffset + contentDoc.positionToOffset(locObj.end),
-    ];
-  };
-
-  const toFileLoc = (range) => ({
-    start: sourceDoc.offsetToPosition(range[0]),
-    end: sourceDoc.offsetToPosition(range[1]),
-  });
-
-  const { allNodes, comments, emptyTextNodes } = collectNodes(templateAST);
-
-  for (const n of allNodes) {
-    const loc = n.loc.toJSON ? n.loc.toJSON() : n.loc;
-
-    // Fix PathExpression head
-    if (n.type === "PathExpression") {
-      const head = n.head;
-      if (head && head.loc) {
-        const headLoc = head.loc.toJSON ? head.loc.toJSON() : head.loc;
-        if (headLoc && headLoc.start) {
-          head.range = toFileRange(headLoc);
-          head.start = head.range[0];
-          head.end = head.range[1];
-          head.loc = toFileLoc(head.range);
-        }
+export function tokenize(template, doc, startOffset) {
+  const tokens = [];
+  let wordStart = -1;
+  function pushToken(value, type, range) {
+    tokens.push({
+      type,
+      value,
+      range,
+      start: range[0],
+      end: range[1],
+      loc: {
+        start: { ...doc.offsetToPosition(range[0]), index: range[0] },
+        end: { ...doc.offsetToPosition(range[1]), index: range[1] },
+      },
+    });
+  }
+  for (let i = 0; i < template.length; i++) {
+    const code = template.charCodeAt(i);
+    if (isAlphaNumeric(code)) {
+      if (wordStart < 0) {
+        wordStart = i;
+      }
+    } else {
+      if (wordStart >= 0) {
+        pushToken(template.slice(wordStart, i), "word", [startOffset + wordStart, startOffset + i]);
+        wordStart = -1;
+      }
+      if (!isWhiteSpaceCode(code)) {
+        pushToken(template[i], "Punctuator", [startOffset + i, startOffset + i + 1]);
       }
     }
+  }
+  if (wordStart >= 0) {
+    pushToken(template.slice(wordStart), "word", [
+      startOffset + wordStart,
+      startOffset + template.length,
+    ]);
+  }
+  return tokens;
+}
 
-    // Set range — Template root gets the full <template>...</template> range
-    n.range = n.type === "Template" ? [...templateRange] : toFileRange(loc);
+/**
+ * Builds the final token stream by filtering out tokens covered by comments
+ * or text nodes, then merging text nodes back in sorted order.
+ * @param {object[]} rawTokens
+ * @param {object[]} comments
+ * @param {object[]} textNodes
+ * @return {object[]}
+ */
+function buildTokenStream(rawTokens, comments, textNodes) {
+  const commentIntervals = comments.map((c) => c.range).sort((a, b) => a[0] - b[0]);
+  const textNodeIntervals = textNodes.map((t) => t.range).sort((a, b) => a[0] - b[0]);
+
+  function isCovered(tokenRange, intervals) {
+    let lo = 0;
+    let hi = intervals.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const iv = intervals[mid];
+      if (iv[0] <= tokenRange[0] && iv[1] >= tokenRange[1]) {
+        return true;
+      }
+      if (iv[0] > tokenRange[0]) {
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return false;
+  }
+
+  const filteredTokens = rawTokens.filter(
+    (t) => !isCovered(t.range, commentIntervals) && !isCovered(t.range, textNodeIntervals),
+  );
+
+  const sortedTextNodes = [...textNodes].sort((a, b) => a.range[0] - b.range[0]);
+  const result = [];
+  let ti = 0;
+  for (const token of filteredTokens) {
+    while (ti < sortedTextNodes.length && sortedTextNodes[ti].range[0] < token.range[0]) {
+      result.push(sortedTextNodes[ti++]);
+    }
+    result.push(token);
+  }
+  while (ti < sortedTextNodes.length) {
+    result.push(sortedTextNodes[ti++]);
+  }
+
+  return result;
+}
+
+/**
+ * Parses a Glimmer template and produces a processed AST.
+ *
+ * @param {object} options
+ * @param {string} options.templateContent - The template string to parse with glimmer
+ * @param {DocumentLines} options.codeLines - DocumentLines for the full source file
+ * @param {[number, number]} options.templateRange - Range [start, end] for the Template root node
+ * @param {string} [options.tokenSource] - String to tokenize (defaults to templateContent)
+ * @return {{ ast: object, comments: object[] }}
+ */
+export function processGlimmerTemplate({ templateContent, codeLines, templateRange, tokenSource }) {
+  const offset = templateRange[0];
+  const docLines = new DocumentLines(templateContent);
+
+  const toFileRange = (loc) => [
+    offset + docLines.positionToOffset(loc.start),
+    offset + docLines.positionToOffset(loc.end),
+  ];
+  const toFileLoc = (range) => ({
+    start: codeLines.offsetToPosition(range[0]),
+    end: codeLines.offsetToPosition(range[1]),
+  });
+
+  const ast = glimmerPreprocess(templateContent, { mode: "codemod" });
+  const { allNodes, comments, textNodes, emptyTextNodes } = collectNodes(ast);
+
+  for (const n of allNodes) {
+    if (n.type === "PathExpression") {
+      n.head.range = toFileRange(n.head.loc);
+      n.head.start = n.head.range[0];
+      n.head.end = n.head.range[1];
+      n.head.loc = toFileLoc(n.head.range);
+    }
+
+    n.range = n.type === "Template" ? [...templateRange] : toFileRange(n.loc);
     n.start = n.range[0];
     n.end = n.range[1];
     n.loc = toFileLoc(n.range);
 
-    // Add parts and name to ElementNode
     if (n.type === "ElementNode") {
       n.name = n.tag;
-      // Compute the tag name range: starts 1 char after element start (<), length = tag.length
-      const tagStart = n.range[0] + 1; // skip "<"
-      const tagEnd = tagStart + n.tag.length;
-      const tagRange = [tagStart, tagEnd];
-      n.parts = [
-        {
-          original: n.tag,
-          name: n.tag,
-          type: "GlimmerElementNodePart",
-          range: tagRange,
-          start: tagRange[0],
-          end: tagRange[1],
-          loc: toFileLoc(tagRange),
-        },
-      ];
-    }
-
-    // Handle blockParams — create virtual nodes from the blockParams string array
-    if ("blockParams" in n && Array.isArray(n.blockParams)) {
-      n.blockParamNodes = n.blockParams.map((name) => {
+      n.parts = [n.path.head].map((p) => {
+        const range = toFileRange(p.loc);
         return {
-          type: "GlimmerBlockParam",
-          name,
-          range: [...n.range],
-          start: n.range[0],
-          end: n.range[1],
-          loc: toFileLoc(n.range),
+          ...p,
+          name: p.original,
+          parent: n,
+          type: "GlimmerElementNodePart",
+          range,
+          start: range[0],
+          end: range[1],
+          loc: toFileLoc(range),
         };
       });
     }
 
-    // Nullify empty hashes
+    if ("blockParams" in n && Array.isArray(n.blockParams)) {
+      n.blockParamNodes = n.blockParams.map((name) => ({
+        type: "GlimmerBlockParam",
+        name,
+        range: [...n.range],
+        start: n.range[0],
+        end: n.range[1],
+        loc: toFileLoc(n.range),
+      }));
+    }
+
     if (
       (n.type === "MustacheStatement" ||
         n.type === "BlockStatement" ||
@@ -210,16 +306,79 @@ export function processGlimmerTemplate(templateAST, { contentOffset, templateRan
       n.hash = null;
     }
 
-    // Prefix type with "Glimmer"
     n.type = `Glimmer${n.type}`;
   }
 
-  // Clean up AST structure
   removeFromParent(emptyTextNodes);
   removeFromParent(comments);
   for (const comment of comments) {
     comment.type = "Block";
   }
 
-  return templateAST;
+  ast.tokens = buildTokenStream(
+    tokenize(tokenSource || templateContent, codeLines, offset),
+    comments,
+    textNodes,
+  );
+  ast.contents = templateContent;
+
+  return { ast, comments };
+}
+
+/**
+ * Traverses an ESTree+Glimmer AST. Merges the provided visitor keys
+ * with Glimmer visitor keys for unified traversal.
+ *
+ * @param {Record<string, string[]>} visitorKeys - ESTree visitor keys
+ * @param {object} node - Root AST node
+ * @param {function} visitor - Callback receiving a path object
+ */
+export function traverse(visitorKeys, node, visitor) {
+  const allVisitorKeys = { ...visitorKeys, ...buildGlimmerVisitorKeys() };
+  const queue = [];
+
+  queue.push({
+    node,
+    parent: null,
+    parentKey: null,
+    parentPath: null,
+    context: {},
+  });
+
+  while (queue.length > 0) {
+    const currentPath = queue.pop();
+
+    visitor(currentPath);
+
+    if (!currentPath.node) continue;
+
+    const keys = allVisitorKeys[currentPath.node.type];
+    if (!keys) continue;
+
+    for (const key of keys) {
+      const child = currentPath.node[key];
+
+      if (!child) {
+        continue;
+      } else if (Array.isArray(child)) {
+        for (const item of child) {
+          queue.push({
+            node: item,
+            parent: currentPath.node,
+            context: currentPath.context,
+            parentKey: key,
+            parentPath: currentPath,
+          });
+        }
+      } else {
+        queue.push({
+          node: child,
+          parent: currentPath.node,
+          context: currentPath.context,
+          parentKey: key,
+          parentPath: currentPath,
+        });
+      }
+    }
+  }
 }

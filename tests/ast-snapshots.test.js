@@ -57,6 +57,59 @@ describe("AST snapshots — individual Glimmer nodes", () => {
             "value": "hello",
           },
         ],
+        "contents": "hello",
+        "tokens": [
+          {
+            "chars": "hello",
+            "end": 25,
+            "loc": {
+              "end": {
+                "column": 25,
+                "line": 1,
+              },
+              "start": {
+                "column": 20,
+                "line": 1,
+              },
+            },
+            "parent": {
+              "blockParamNodes": [],
+              "blockParams": [],
+              "body": [
+                [Circular],
+              ],
+              "contents": "hello",
+              "end": 36,
+              "loc": {
+                "end": {
+                  "column": 36,
+                  "line": 1,
+                },
+                "start": {
+                  "column": 10,
+                  "line": 1,
+                },
+              },
+              "parent": null,
+              "range": [
+                10,
+                36,
+              ],
+              "start": 10,
+              "tokens": [
+                [Circular],
+              ],
+              "type": "GlimmerTemplate",
+            },
+            "range": [
+              20,
+              25,
+            ],
+            "start": 20,
+            "type": "GlimmerTextNode",
+            "value": "hello",
+          },
+        ],
         "type": "GlimmerTemplate",
       }
     `);
@@ -80,9 +133,32 @@ describe("AST snapshots — individual Glimmer nodes", () => {
             "value": "Hello",
           },
         ],
+        "closeTag": {
+          "data": {
+            "hbsPositions": {},
+            "kind": "HbsPosition",
+            "source": Source {
+              "module": "an unknown module",
+              "source": "<h1>Hello</h1>",
+            },
+          },
+          "isInvisible": false,
+        },
         "comments": [],
         "modifiers": [],
         "name": "h1",
+        "openTag": {
+          "data": {
+            "hbsPositions": {},
+            "kind": "HbsPosition",
+            "source": {
+              "module": "an unknown module",
+              "source": "<h1>Hello</h1>",
+            },
+          },
+          "isInvisible": false,
+        },
+        "params": [],
         "parts": [
           {
             "name": "h1",
@@ -90,6 +166,16 @@ describe("AST snapshots — individual Glimmer nodes", () => {
             "type": "GlimmerElementNodePart",
           },
         ],
+        "path": {
+          "head": {
+            "name": "h1",
+            "original": "h1",
+            "type": "VarHead",
+          },
+          "original": "h1",
+          "tail": [],
+          "type": "PathExpression",
+        },
         "selfClosing": false,
         "tag": "h1",
         "type": "GlimmerElementNode",
@@ -116,20 +202,16 @@ describe("AST snapshots — individual Glimmer nodes", () => {
     expect(mustache.type).toBe("GlimmerMustacheStatement");
     expect(stripPositions(mustache)).toMatchInlineSnapshot(`
       {
-        "escaped": true,
         "hash": null,
         "params": [],
         "path": {
-          "_head": {
+          "head": {
             "name": "@name",
+            "original": "@name",
             "type": "AtHead",
           },
-          "data": true,
           "original": "@name",
-          "parts": [
-            "name",
-          ],
-          "this": false,
+          "tail": [],
           "type": "GlimmerPathExpression",
         },
         "strip": {
@@ -151,9 +233,7 @@ describe("AST snapshots — individual Glimmer nodes", () => {
     expect(attr.type).toBe("GlimmerAttrNode");
     expect(stripPositions(attr)).toMatchInlineSnapshot(`
       {
-        "isValueless": false,
         "name": "class",
-        "quoteType": """,
         "type": "GlimmerAttrNode",
         "value": {
           "chars": "main",
@@ -201,9 +281,32 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                 "value": "Hello",
               },
             ],
+            "closeTag": {
+              "data": {
+                "hbsPositions": {},
+                "kind": "HbsPosition",
+                "source": Source {
+                  "module": "an unknown module",
+                  "source": "<h1>Hello</h1>",
+                },
+              },
+              "isInvisible": false,
+            },
             "comments": [],
             "modifiers": [],
             "name": "h1",
+            "openTag": {
+              "data": {
+                "hbsPositions": {},
+                "kind": "HbsPosition",
+                "source": {
+                  "module": "an unknown module",
+                  "source": "<h1>Hello</h1>",
+                },
+              },
+              "isInvisible": false,
+            },
+            "params": [],
             "parts": [
               {
                 "name": "h1",
@@ -211,9 +314,359 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                 "type": "GlimmerElementNodePart",
               },
             ],
+            "path": {
+              "head": {
+                "name": "h1",
+                "original": "h1",
+                "type": "VarHead",
+              },
+              "original": "h1",
+              "tail": [],
+              "type": "PathExpression",
+            },
             "selfClosing": false,
             "tag": "h1",
             "type": "GlimmerElementNode",
+          },
+        ],
+        "contents": "<h1>Hello</h1>",
+        "tokens": [
+          {
+            "type": "Punctuator",
+            "value": "<",
+          },
+          {
+            "type": "word",
+            "value": "h1",
+          },
+          {
+            "type": "Punctuator",
+            "value": ">",
+          },
+          {
+            "chars": "Hello",
+            "end": 36,
+            "loc": {
+              "end": {
+                "column": 36,
+                "line": 1,
+              },
+              "start": {
+                "column": 31,
+                "line": 1,
+              },
+            },
+            "parent": {
+              "attributes": [],
+              "blockParamNodes": [],
+              "blockParams": [],
+              "children": [
+                [Circular],
+              ],
+              "closeTag": {
+                "end": {
+                  "column": 14,
+                  "line": 1,
+                },
+                "start": {
+                  "column": 9,
+                  "line": 1,
+                },
+              },
+              "comments": [],
+              "end": 41,
+              "loc": {
+                "end": {
+                  "column": 41,
+                  "line": 1,
+                },
+                "start": {
+                  "column": 27,
+                  "line": 1,
+                },
+              },
+              "modifiers": [],
+              "name": "h1",
+              "openTag": {
+                "end": {
+                  "column": 4,
+                  "line": 1,
+                },
+                "start": {
+                  "column": 0,
+                  "line": 1,
+                },
+              },
+              "params": [],
+              "parent": {
+                "blockParamNodes": [],
+                "blockParams": [],
+                "body": [
+                  [Circular],
+                ],
+                "contents": "<h1>Hello</h1>",
+                "end": 52,
+                "loc": {
+                  "end": {
+                    "column": 52,
+                    "line": 1,
+                  },
+                  "start": {
+                    "column": 17,
+                    "line": 1,
+                  },
+                },
+                "parent": null,
+                "range": [
+                  17,
+                  52,
+                ],
+                "start": 17,
+                "tokens": [
+                  {
+                    "end": 28,
+                    "loc": {
+                      "end": {
+                        "column": 28,
+                        "index": 28,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 27,
+                        "index": 27,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      27,
+                      28,
+                    ],
+                    "start": 27,
+                    "type": "Punctuator",
+                    "value": "<",
+                  },
+                  {
+                    "end": 30,
+                    "loc": {
+                      "end": {
+                        "column": 30,
+                        "index": 30,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 28,
+                        "index": 28,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      28,
+                      30,
+                    ],
+                    "start": 28,
+                    "type": "word",
+                    "value": "h1",
+                  },
+                  {
+                    "end": 31,
+                    "loc": {
+                      "end": {
+                        "column": 31,
+                        "index": 31,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 30,
+                        "index": 30,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      30,
+                      31,
+                    ],
+                    "start": 30,
+                    "type": "Punctuator",
+                    "value": ">",
+                  },
+                  [Circular],
+                  {
+                    "end": 37,
+                    "loc": {
+                      "end": {
+                        "column": 37,
+                        "index": 37,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 36,
+                        "index": 36,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      36,
+                      37,
+                    ],
+                    "start": 36,
+                    "type": "Punctuator",
+                    "value": "<",
+                  },
+                  {
+                    "end": 38,
+                    "loc": {
+                      "end": {
+                        "column": 38,
+                        "index": 38,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 37,
+                        "index": 37,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      37,
+                      38,
+                    ],
+                    "start": 37,
+                    "type": "Punctuator",
+                    "value": "/",
+                  },
+                  {
+                    "end": 40,
+                    "loc": {
+                      "end": {
+                        "column": 40,
+                        "index": 40,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 38,
+                        "index": 38,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      38,
+                      40,
+                    ],
+                    "start": 38,
+                    "type": "word",
+                    "value": "h1",
+                  },
+                  {
+                    "end": 41,
+                    "loc": {
+                      "end": {
+                        "column": 41,
+                        "index": 41,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 40,
+                        "index": 40,
+                        "line": 1,
+                      },
+                    },
+                    "range": [
+                      40,
+                      41,
+                    ],
+                    "start": 40,
+                    "type": "Punctuator",
+                    "value": ">",
+                  },
+                ],
+                "type": "GlimmerTemplate",
+              },
+              "parts": [
+                {
+                  "end": 30,
+                  "loc": {
+                    "end": {
+                      "column": 30,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 28,
+                      "line": 1,
+                    },
+                  },
+                  "name": "h1",
+                  "original": "h1",
+                  "parent": [Circular],
+                  "range": [
+                    28,
+                    30,
+                  ],
+                  "start": 28,
+                  "type": "GlimmerElementNodePart",
+                },
+              ],
+              "path": {
+                "head": {
+                  "loc": {
+                    "end": {
+                      "column": 3,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 1,
+                      "line": 1,
+                    },
+                  },
+                  "name": "h1",
+                  "original": "h1",
+                  "type": "VarHead",
+                },
+                "loc": {
+                  "end": {
+                    "column": 3,
+                    "line": 1,
+                  },
+                  "start": {
+                    "column": 1,
+                    "line": 1,
+                  },
+                },
+                "original": "h1",
+                "tail": [],
+                "type": "PathExpression",
+              },
+              "range": [
+                27,
+                41,
+              ],
+              "selfClosing": false,
+              "start": 27,
+              "tag": "h1",
+              "type": "GlimmerElementNode",
+            },
+            "range": [
+              31,
+              36,
+            ],
+            "start": 31,
+            "type": "GlimmerTextNode",
+            "value": "Hello",
+          },
+          {
+            "type": "Punctuator",
+            "value": "<",
+          },
+          {
+            "type": "Punctuator",
+            "value": "/",
+          },
+          {
+            "type": "word",
+            "value": "h1",
+          },
+          {
+            "type": "Punctuator",
+            "value": ">",
           },
         ],
         "type": "GlimmerTemplate",
@@ -234,9 +687,7 @@ describe("AST snapshots — full templates (positions stripped)", () => {
           {
             "attributes": [
               {
-                "isValueless": false,
                 "name": "class",
-                "quoteType": """,
                 "type": "GlimmerAttrNode",
                 "value": {
                   "chars": "main",
@@ -249,20 +700,16 @@ describe("AST snapshots — full templates (positions stripped)", () => {
             "blockParams": [],
             "children": [
               {
-                "escaped": true,
                 "hash": null,
                 "params": [],
                 "path": {
-                  "_head": {
+                  "head": {
                     "name": "@content",
+                    "original": "@content",
                     "type": "AtHead",
                   },
-                  "data": true,
                   "original": "@content",
-                  "parts": [
-                    "content",
-                  ],
-                  "this": false,
+                  "tail": [],
                   "type": "GlimmerPathExpression",
                 },
                 "strip": {
@@ -273,9 +720,32 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                 "type": "GlimmerMustacheStatement",
               },
             ],
+            "closeTag": {
+              "data": {
+                "hbsPositions": {},
+                "kind": "HbsPosition",
+                "source": Source {
+                  "module": "an unknown module",
+                  "source": "<div class="main">{{@content}}</div>",
+                },
+              },
+              "isInvisible": false,
+            },
             "comments": [],
             "modifiers": [],
             "name": "div",
+            "openTag": {
+              "data": {
+                "hbsPositions": {},
+                "kind": "HbsPosition",
+                "source": {
+                  "module": "an unknown module",
+                  "source": "<div class="main">{{@content}}</div>",
+                },
+              },
+              "isInvisible": false,
+            },
+            "params": [],
             "parts": [
               {
                 "name": "div",
@@ -283,9 +753,659 @@ describe("AST snapshots — full templates (positions stripped)", () => {
                 "type": "GlimmerElementNodePart",
               },
             ],
+            "path": {
+              "head": {
+                "name": "div",
+                "original": "div",
+                "type": "VarHead",
+              },
+              "original": "div",
+              "tail": [],
+              "type": "PathExpression",
+            },
             "selfClosing": false,
             "tag": "div",
             "type": "GlimmerElementNode",
+          },
+        ],
+        "contents": "<div class="main">{{@content}}</div>",
+        "tokens": [
+          {
+            "type": "Punctuator",
+            "value": "<",
+          },
+          {
+            "type": "word",
+            "value": "div",
+          },
+          {
+            "type": "word",
+            "value": "class",
+          },
+          {
+            "type": "Punctuator",
+            "value": "=",
+          },
+          {
+            "chars": "main",
+            "end": 37,
+            "loc": {
+              "end": {
+                "column": 37,
+                "line": 1,
+              },
+              "start": {
+                "column": 31,
+                "line": 1,
+              },
+            },
+            "parent": {
+              "end": 37,
+              "loc": {
+                "end": {
+                  "column": 37,
+                  "line": 1,
+                },
+                "start": {
+                  "column": 25,
+                  "line": 1,
+                },
+              },
+              "name": "class",
+              "parent": {
+                "attributes": [
+                  [Circular],
+                ],
+                "blockParamNodes": [],
+                "blockParams": [],
+                "children": [
+                  {
+                    "end": 50,
+                    "hash": null,
+                    "loc": {
+                      "end": {
+                        "column": 50,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 38,
+                        "line": 1,
+                      },
+                    },
+                    "params": [],
+                    "parent": [Circular],
+                    "path": {
+                      "end": 48,
+                      "head": {
+                        "end": 48,
+                        "loc": {
+                          "end": {
+                            "column": 48,
+                            "line": 1,
+                          },
+                          "start": {
+                            "column": 40,
+                            "line": 1,
+                          },
+                        },
+                        "name": "@content",
+                        "original": "@content",
+                        "range": [
+                          40,
+                          48,
+                        ],
+                        "start": 40,
+                        "type": "AtHead",
+                      },
+                      "loc": {
+                        "end": {
+                          "column": 48,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 40,
+                          "line": 1,
+                        },
+                      },
+                      "original": "@content",
+                      "parent": [Circular],
+                      "range": [
+                        40,
+                        48,
+                      ],
+                      "start": 40,
+                      "tail": [],
+                      "type": "GlimmerPathExpression",
+                    },
+                    "range": [
+                      38,
+                      50,
+                    ],
+                    "start": 38,
+                    "strip": {
+                      "close": false,
+                      "open": false,
+                    },
+                    "trusting": false,
+                    "type": "GlimmerMustacheStatement",
+                  },
+                ],
+                "closeTag": {
+                  "end": {
+                    "column": 36,
+                    "line": 1,
+                  },
+                  "start": {
+                    "column": 30,
+                    "line": 1,
+                  },
+                },
+                "comments": [],
+                "end": 56,
+                "loc": {
+                  "end": {
+                    "column": 56,
+                    "line": 1,
+                  },
+                  "start": {
+                    "column": 20,
+                    "line": 1,
+                  },
+                },
+                "modifiers": [],
+                "name": "div",
+                "openTag": {
+                  "end": {
+                    "column": 18,
+                    "line": 1,
+                  },
+                  "start": {
+                    "column": 0,
+                    "line": 1,
+                  },
+                },
+                "params": [],
+                "parent": {
+                  "blockParamNodes": [],
+                  "blockParams": [],
+                  "body": [
+                    [Circular],
+                  ],
+                  "contents": "<div class="main">{{@content}}</div>",
+                  "end": 67,
+                  "loc": {
+                    "end": {
+                      "column": 67,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 10,
+                      "line": 1,
+                    },
+                  },
+                  "parent": null,
+                  "range": [
+                    10,
+                    67,
+                  ],
+                  "start": 10,
+                  "tokens": [
+                    {
+                      "end": 21,
+                      "loc": {
+                        "end": {
+                          "column": 21,
+                          "index": 21,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 20,
+                          "index": 20,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        20,
+                        21,
+                      ],
+                      "start": 20,
+                      "type": "Punctuator",
+                      "value": "<",
+                    },
+                    {
+                      "end": 24,
+                      "loc": {
+                        "end": {
+                          "column": 24,
+                          "index": 24,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 21,
+                          "index": 21,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        21,
+                        24,
+                      ],
+                      "start": 21,
+                      "type": "word",
+                      "value": "div",
+                    },
+                    {
+                      "end": 30,
+                      "loc": {
+                        "end": {
+                          "column": 30,
+                          "index": 30,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 25,
+                          "index": 25,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        25,
+                        30,
+                      ],
+                      "start": 25,
+                      "type": "word",
+                      "value": "class",
+                    },
+                    {
+                      "end": 31,
+                      "loc": {
+                        "end": {
+                          "column": 31,
+                          "index": 31,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 30,
+                          "index": 30,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        30,
+                        31,
+                      ],
+                      "start": 30,
+                      "type": "Punctuator",
+                      "value": "=",
+                    },
+                    [Circular],
+                    {
+                      "end": 38,
+                      "loc": {
+                        "end": {
+                          "column": 38,
+                          "index": 38,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 37,
+                          "index": 37,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        37,
+                        38,
+                      ],
+                      "start": 37,
+                      "type": "Punctuator",
+                      "value": ">",
+                    },
+                    {
+                      "end": 39,
+                      "loc": {
+                        "end": {
+                          "column": 39,
+                          "index": 39,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 38,
+                          "index": 38,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        38,
+                        39,
+                      ],
+                      "start": 38,
+                      "type": "Punctuator",
+                      "value": "{",
+                    },
+                    {
+                      "end": 40,
+                      "loc": {
+                        "end": {
+                          "column": 40,
+                          "index": 40,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 39,
+                          "index": 39,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        39,
+                        40,
+                      ],
+                      "start": 39,
+                      "type": "Punctuator",
+                      "value": "{",
+                    },
+                    {
+                      "end": 41,
+                      "loc": {
+                        "end": {
+                          "column": 41,
+                          "index": 41,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 40,
+                          "index": 40,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        40,
+                        41,
+                      ],
+                      "start": 40,
+                      "type": "Punctuator",
+                      "value": "@",
+                    },
+                    {
+                      "end": 48,
+                      "loc": {
+                        "end": {
+                          "column": 48,
+                          "index": 48,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 41,
+                          "index": 41,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        41,
+                        48,
+                      ],
+                      "start": 41,
+                      "type": "word",
+                      "value": "content",
+                    },
+                    {
+                      "end": 49,
+                      "loc": {
+                        "end": {
+                          "column": 49,
+                          "index": 49,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 48,
+                          "index": 48,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        48,
+                        49,
+                      ],
+                      "start": 48,
+                      "type": "Punctuator",
+                      "value": "}",
+                    },
+                    {
+                      "end": 50,
+                      "loc": {
+                        "end": {
+                          "column": 50,
+                          "index": 50,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 49,
+                          "index": 49,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        49,
+                        50,
+                      ],
+                      "start": 49,
+                      "type": "Punctuator",
+                      "value": "}",
+                    },
+                    {
+                      "end": 51,
+                      "loc": {
+                        "end": {
+                          "column": 51,
+                          "index": 51,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 50,
+                          "index": 50,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        50,
+                        51,
+                      ],
+                      "start": 50,
+                      "type": "Punctuator",
+                      "value": "<",
+                    },
+                    {
+                      "end": 52,
+                      "loc": {
+                        "end": {
+                          "column": 52,
+                          "index": 52,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 51,
+                          "index": 51,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        51,
+                        52,
+                      ],
+                      "start": 51,
+                      "type": "Punctuator",
+                      "value": "/",
+                    },
+                    {
+                      "end": 55,
+                      "loc": {
+                        "end": {
+                          "column": 55,
+                          "index": 55,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 52,
+                          "index": 52,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        52,
+                        55,
+                      ],
+                      "start": 52,
+                      "type": "word",
+                      "value": "div",
+                    },
+                    {
+                      "end": 56,
+                      "loc": {
+                        "end": {
+                          "column": 56,
+                          "index": 56,
+                          "line": 1,
+                        },
+                        "start": {
+                          "column": 55,
+                          "index": 55,
+                          "line": 1,
+                        },
+                      },
+                      "range": [
+                        55,
+                        56,
+                      ],
+                      "start": 55,
+                      "type": "Punctuator",
+                      "value": ">",
+                    },
+                  ],
+                  "type": "GlimmerTemplate",
+                },
+                "parts": [
+                  {
+                    "end": 24,
+                    "loc": {
+                      "end": {
+                        "column": 24,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 21,
+                        "line": 1,
+                      },
+                    },
+                    "name": "div",
+                    "original": "div",
+                    "parent": [Circular],
+                    "range": [
+                      21,
+                      24,
+                    ],
+                    "start": 21,
+                    "type": "GlimmerElementNodePart",
+                  },
+                ],
+                "path": {
+                  "head": {
+                    "loc": {
+                      "end": {
+                        "column": 4,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 1,
+                        "line": 1,
+                      },
+                    },
+                    "name": "div",
+                    "original": "div",
+                    "type": "VarHead",
+                  },
+                  "loc": {
+                    "end": {
+                      "column": 4,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 1,
+                      "line": 1,
+                    },
+                  },
+                  "original": "div",
+                  "tail": [],
+                  "type": "PathExpression",
+                },
+                "range": [
+                  20,
+                  56,
+                ],
+                "selfClosing": false,
+                "start": 20,
+                "tag": "div",
+                "type": "GlimmerElementNode",
+              },
+              "range": [
+                25,
+                37,
+              ],
+              "start": 25,
+              "type": "GlimmerAttrNode",
+              "value": [Circular],
+            },
+            "range": [
+              31,
+              37,
+            ],
+            "start": 31,
+            "type": "GlimmerTextNode",
+            "value": "main",
+          },
+          {
+            "type": "Punctuator",
+            "value": ">",
+          },
+          {
+            "type": "Punctuator",
+            "value": "{",
+          },
+          {
+            "type": "Punctuator",
+            "value": "{",
+          },
+          {
+            "type": "Punctuator",
+            "value": "@",
+          },
+          {
+            "type": "word",
+            "value": "content",
+          },
+          {
+            "type": "Punctuator",
+            "value": "}",
+          },
+          {
+            "type": "Punctuator",
+            "value": "}",
+          },
+          {
+            "type": "Punctuator",
+            "value": "<",
+          },
+          {
+            "type": "Punctuator",
+            "value": "/",
+          },
+          {
+            "type": "word",
+            "value": "div",
+          },
+          {
+            "type": "Punctuator",
+            "value": ">",
           },
         ],
         "type": "GlimmerTemplate",
@@ -404,6 +1524,59 @@ describe("AST snapshots — JS/TS wrapper nodes", () => {
               "body": [
                 {
                   "chars": "hello",
+                  "type": "GlimmerTextNode",
+                  "value": "hello",
+                },
+              ],
+              "contents": "hello",
+              "tokens": [
+                {
+                  "chars": "hello",
+                  "end": 25,
+                  "loc": {
+                    "end": {
+                      "column": 25,
+                      "line": 1,
+                    },
+                    "start": {
+                      "column": 20,
+                      "line": 1,
+                    },
+                  },
+                  "parent": {
+                    "blockParamNodes": [],
+                    "blockParams": [],
+                    "body": [
+                      [Circular],
+                    ],
+                    "contents": "hello",
+                    "end": 36,
+                    "loc": {
+                      "end": {
+                        "column": 36,
+                        "line": 1,
+                      },
+                      "start": {
+                        "column": 10,
+                        "line": 1,
+                      },
+                    },
+                    "parent": null,
+                    "range": [
+                      10,
+                      36,
+                    ],
+                    "start": 10,
+                    "tokens": [
+                      [Circular],
+                    ],
+                    "type": "GlimmerTemplate",
+                  },
+                  "range": [
+                    20,
+                    25,
+                  ],
+                  "start": 20,
                   "type": "GlimmerTextNode",
                   "value": "hello",
                 },
