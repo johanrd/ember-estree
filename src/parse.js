@@ -74,7 +74,11 @@ export function toTree(source, options = {}) {
 
   // If no templates, return early
   if (!parseResults.length) {
-    if (useCustomParser) return result;
+    if (useCustomParser) {
+      result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
+      return result;
+    }
+    result.ast.visitorKeys = glimmerVisitorKeys;
     return result.ast;
   }
 
@@ -276,10 +280,13 @@ export function toTree(source, options = {}) {
   }
 
   if (useCustomParser) {
+    result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
     result.templateInfos = templateInfos;
     return result;
   }
 
+  // Default path: return bare AST with visitorKeys attached
+  result.ast.visitorKeys = glimmerVisitorKeys;
   return result.ast;
 }
 
