@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { run, bench, boxplot, summary } from "mitata";
+import { run, bench, boxplot, summary, do_not_optimize } from "mitata";
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -97,14 +97,19 @@ for (const { type, ext, experimentParse, controlParse } of PARSERS) {
     const opts = { filePath: `${size}${ext}` };
 
     for (let i = 0; i < WARMUP_ROUNDS; i++) {
-      experimentParse(code, opts);
-      controlParse?.(code, opts);
+      do_not_optimize(experimentParse(code, opts));
+      if (controlParse) do_not_optimize(controlParse(code, opts));
     }
   }
 }
 
 globalThis.gc?.();
 
+// Alternate registration order: whichever parser runs first in a
+// summary group gets a small advantage (warm instruction cache, more
+// favourable thermal/frequency state).  By flipping the order on
+// every other group the bias cancels out across the full run instead
+// of always penalising the same side.
 let groupIndex = 0;
 
 for (const { type, ext, experimentParse, controlParse } of PARSERS) {
@@ -116,33 +121,31 @@ for (const { type, ext, experimentParse, controlParse } of PARSERS) {
     globalThis.gc?.();
 
     if (controlParse) {
-      // Side-by-side comparison with boxplots.
-      // .gc('inner') forces a full GC between every iteration so neither
-      // parser inherits the other's garbage — eliminates the biggest source
-      // of systematic bias on shared CI runners.
-      //
-      // Alternate registration order: whichever parser runs first in a
-      // summary group gets a small advantage (warm instruction cache, more
-      // favourable thermal/frequency state).  By flipping the order on
-      // every other group the bias cancels out across the full run instead
-      // of always penalising the experiment.
+      // Use gc('once') (mitata's default) — runs GC once before the
+      // measurement loop.  gc('inner') was forcing GC between every
+      // iteration which doubled the time budget and capped us at ~12
+      // samples for expensive benchmarks.  With gc('once') mitata
+      // collects many more samples, and its built-in outlier trimming
+      // (drop top/bottom 2) handles the occasional mid-measurement GC.
       const controlFirst = groupIndex % 2 === 0;
       groupIndex++;
 
       boxplot(() => {
         summary(() => {
           if (controlFirst) {
-            bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
-            bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
+            bench(`${type} ${size} (control)`, () => do_not_optimize(controlParse(code, opts)));
+            bench(`${type} ${size} (experiment)`, () =>
+              do_not_optimize(experimentParse(code, opts)));
           } else {
-            bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
-            bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
+            bench(`${type} ${size} (experiment)`, () =>
+              do_not_optimize(experimentParse(code, opts)));
+            bench(`${type} ${size} (control)`, () => do_not_optimize(controlParse(code, opts)));
           }
         });
       });
     } else {
       // Standalone mode — just benchmark the local parsers
-      bench(`${type} ${size}`, () => experimentParse(code, opts));
+      bench(`${type} ${size}`, () => do_not_optimize(experimentParse(code, opts)));
     }
   }
 }
