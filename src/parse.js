@@ -13,13 +13,17 @@ import { parseSync } from "oxc-parser";
 import { Preprocessor } from "content-tag";
 import { walk } from "zimmerframe";
 
-import {
-  _processTemplate,
-  DocumentLines,
-  glimmerVisitorKeys as glimmerKeys,
-} from "./transforms.js";
+import { processTemplate, DocumentLines, glimmerVisitorKeys } from "./transforms.js";
 
 const preprocessor = new Preprocessor();
+
+// Node types that placeholders parse into (backtick/static-block format)
+const PLACEHOLDER_TYPES = new Set([
+  "ExpressionStatement",
+  "StaticBlock",
+  "TemplateLiteral",
+  "ExportDefaultDeclaration",
+]);
 
 /**
  * Parse Ember source and return an ESTree-compatible AST.
@@ -71,7 +75,7 @@ export function toTree(source, options = {}) {
     if (useCustomParser) {
       result.visitorKeys = {
         ...result.visitorKeys,
-        ...glimmerKeys,
+        ...glimmerVisitorKeys,
       };
       return result;
     }
@@ -81,7 +85,6 @@ export function toTree(source, options = {}) {
   const codeLines = new DocumentLines(source);
   const allComments = [];
   const templateInfos = [];
-  // glimmerKeys imported at top of file
 
   // Build a map of template ranges for lookup
   const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
@@ -95,7 +98,7 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast, comments } = _processTemplate(templateContent, codeLines, contentRange);
+    const { ast, comments } = processTemplate(templateContent, codeLines, contentRange);
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;
@@ -167,7 +170,7 @@ export function toTree(source, options = {}) {
     const path = { node, parent: parentPath?.node ?? null, parentPath };
     visitGlimmerNode(node, path);
 
-    const keys = glimmerKeys[node.type];
+    const keys = glimmerVisitorKeys[node.type];
     if (!keys) return;
     for (const key of keys) {
       const child = node[key];
@@ -182,14 +185,6 @@ export function toTree(source, options = {}) {
     }
   }
 
-  // Placeholder node types (backtick/static-block format)
-  const placeholderTypes = new Set([
-    "ExpressionStatement",
-    "StaticBlock",
-    "TemplateLiteral",
-    "ExportDefaultDeclaration",
-  ]);
-
   if (useCustomParser) {
     // Custom parser path: mutate the parser's AST in-place, invoke visitors.
     // Use the parser's visitorKeys to traverse efficiently (avoids Object.keys).
@@ -200,7 +195,7 @@ export function toTree(source, options = {}) {
 
       const path = { node, parent: parentPath?.node ?? null, parentPath };
 
-      if (placeholderTypes.has(node.type)) {
+      if (PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
@@ -238,7 +233,7 @@ export function toTree(source, options = {}) {
     // Default oxc path: use zimmerframe walk (returns new tree)
     result.ast = walk(result.ast, null, {
       _(node, { next }) {
-        if (placeholderTypes.has(node.type)) {
+        if (PLACEHOLDER_TYPES.has(node.type)) {
           const parseResult = matchPlaceholder(node);
           if (parseResult) {
             return processPlaceholder(parseResult);
@@ -290,7 +285,7 @@ export function toTree(source, options = {}) {
   // Merge Glimmer visitor keys
   result.visitorKeys = {
     ...result.visitorKeys,
-    ...glimmerKeys,
+    ...glimmerVisitorKeys,
   };
 
   if (useCustomParser) {
@@ -316,7 +311,7 @@ function toTemplateTree(source, options) {
   const codeLines = options.codeLines || new DocumentLines(source);
   const templateRange = options.templateRange || [0, source.length];
 
-  const { ast, comments } = _processTemplate(source, codeLines, templateRange);
+  const { ast, comments } = processTemplate(source, codeLines, templateRange);
   return { ast, comments };
 }
 

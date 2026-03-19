@@ -209,7 +209,7 @@ function buildTokenStream(rawTokens, comments, textNodes) {
  * Parse and transform a Glimmer template into an ESTree-compatible AST.
  * Internal — consumed by toTree.
  */
-export function _processTemplate(templateContent, codeLines, templateRange) {
+export function processTemplate(templateContent, codeLines, templateRange) {
   const offset = templateRange[0];
   const docLines = new DocumentLines(templateContent);
 
