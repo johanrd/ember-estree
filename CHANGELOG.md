@@ -2,6 +2,17 @@
 
 ## Release (2026-03-19)
 
+* ember-estree 0.4.2 (patch)
+
+#### :bug: Bug Fix
+* `ember-estree`
+  * [#27](https://github.com/NullVoxPopuli/ember-estree/pull/27) Handle gts filepath ([@evoactivity](https://github.com/evoactivity))
+
+#### Committers: 1
+- Liam Potter ([@evoactivity](https://github.com/evoactivity))
+
+## Release (2026-03-19)
+
 * ember-estree 0.4.1 (patch)
 
 #### :bug: Bug Fix
