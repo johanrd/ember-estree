@@ -157,7 +157,7 @@ export default class MyComponent extends Component<Arg> {
 }
 `;
     const ast = parse(source, { filePath: "/some/path/to/MyComponent.gts" });
-    expect(ast.type).toBe('File');
+    expect(ast.type).toBe("File");
 
     const template = findNode(ast, "GlimmerTemplate");
     expect(template).toBeTruthy();
