@@ -1,0 +1,1095 @@
+{{! Application Layout - Large Benchmark Fixture }}
+<div
+  class="app-container {{if @isDarkMode 'dark-theme' 'light-theme'}}"
+  role="application"
+  aria-label={{@appName}}
+>
+
+  {{! ===== SKIP NAVIGATION ===== }}
+  <a href="#main-content" class="skip-link" aria-label="Skip to main content">
+    Skip to main content
+  </a>
+
+  {{! ===== TOP NOTIFICATION BAR ===== }}
+  {{#if @systemNotification}}
+    <div
+      class="system-notification {{if @systemNotification.isUrgent 'urgent' 'info'}}"
+      role="alert"
+      aria-live="polite"
+      {{on "click" (fn @dismissNotification @systemNotification.id)}}
+    >
+      <span class="notification-icon">
+        {{#if (eq @systemNotification.type "warning")}}
+          <WarningIcon @size="sm" />
+        {{else if (eq @systemNotification.type "error")}}
+          <ErrorIcon @size="sm" />
+        {{else}}
+          <InfoIcon @size="sm" />
+        {{/if}}
+      </span>
+      <p class="notification-text">{{@systemNotification.message}}</p>
+      <button
+        type="button"
+        class="notification-dismiss"
+        aria-label="Dismiss notification"
+        {{on "click" (fn @dismissNotification @systemNotification.id)}}
+      >
+        &times;
+      </button>
+    </div>
+  {{/if}}
+
+  {{! ===== APPLICATION HEADER ===== }}
+  <header class="app-header" role="banner">
+    <div class="header-left">
+      <button
+        type="button"
+        class="sidebar-toggle"
+        aria-label={{if @isSidebarOpen "Close sidebar" "Open sidebar"}}
+        aria-expanded={{if @isSidebarOpen "true" "false"}}
+        {{on "click" @toggleSidebar}}
+      >
+        <HamburgerIcon @isOpen={{@isSidebarOpen}} />
+      </button>
+      <a href="/" class="app-logo" aria-label="Home">
+        <BrandLogo @variant={{if @isDarkMode "light" "dark"}} @size="md" />
+      </a>
+    </div>
+
+    <div class="header-center">
+      <SearchBar
+        @placeholder="Search everything..."
+        @value={{@globalSearchQuery}}
+        @onSearch={{@performGlobalSearch}}
+        @results={{@globalSearchResults}}
+        @isLoading={{@isSearching}}
+      >
+        <:prefix>
+          <SearchIcon @size="sm" class="search-prefix-icon" />
+        </:prefix>
+        <:results as |results|>
+          {{#each results as |result index|}}
+            <SearchResultItem
+              @result={{result}}
+              @index={{index}}
+              @isHighlighted={{eq @highlightedSearchIndex index}}
+              @onClick={{fn @navigateToResult result}}
+            >
+              <span class="result-type-badge {{result.type}}">{{result.type}}</span>
+              <span class="result-title">{{result.title}}</span>
+              {{#if result.subtitle}}
+                <span class="result-subtitle">{{result.subtitle}}</span>
+              {{/if}}
+            </SearchResultItem>
+          {{/each}}
+        </:results>
+        <:empty>
+          <div class="search-empty-state">
+            <p>No results found for "{{@globalSearchQuery}}"</p>
+          </div>
+        </:empty>
+      </SearchBar>
+    </div>
+
+    <div class="header-right">
+      <nav class="header-actions" aria-label="Header actions">
+        {{! Notifications Dropdown }}
+        <DropdownMenu
+          @triggerId="notifications-trigger"
+          @isOpen={{@isNotificationsOpen}}
+          @onToggle={{@toggleNotifications}}
+          @placement="bottom-end"
+        >
+          <:trigger>
+            <button
+              type="button"
+              id="notifications-trigger"
+              class="header-action-btn"
+              aria-label={{if
+                @unreadCount
+                (concat "Notifications: " @unreadCount " unread")
+                "Notifications"
+              }}
+              {{on "click" @toggleNotifications}}
+            >
+              <BellIcon @size="md" />
+              {{#if @unreadCount}}
+                <span class="badge badge-danger" aria-hidden="true">
+                  {{if (gt @unreadCount 99) "99+" @unreadCount}}
+                </span>
+              {{/if}}
+            </button>
+          </:trigger>
+          <:content>
+            <div class="notifications-panel" role="region" aria-label="Notifications">
+              <div class="notifications-header">
+                <h3>Notifications</h3>
+                {{#if @unreadCount}}
+                  <button
+                    type="button"
+                    class="mark-all-read-btn"
+                    {{on "click" @markAllNotificationsRead}}
+                  >
+                    Mark all read
+                  </button>
+                {{/if}}
+              </div>
+              <ul class="notifications-list" role="list">
+                {{#each @notifications as |notification|}}
+                  <li
+                    class="notification-item {{unless notification.isRead 'unread'}}"
+                    role="listitem"
+                    {{on "click" (fn @openNotification notification)}}
+                  >
+                    <div class="notification-avatar">
+                      <UserAvatar @user={{notification.sender}} @size="sm" />
+                    </div>
+                    <div class="notification-body">
+                      <p class="notification-message">{{notification.message}}</p>
+                      <time class="notification-time" datetime={{notification.createdAt}}>
+                        {{time-ago notification.createdAt}}
+                      </time>
+                    </div>
+                    {{#unless notification.isRead}}
+                      <span class="unread-dot" aria-label="Unread"></span>
+                    {{/unless}}
+                  </li>
+                {{else}}
+                  <li class="notifications-empty">
+                    <EmptyState @icon="bell" @message="No notifications yet" />
+                  </li>
+                {{/each}}
+              </ul>
+            </div>
+          </:content>
+        </DropdownMenu>
+
+        {{! User Menu Dropdown }}
+        <DropdownMenu
+          @triggerId="user-menu-trigger"
+          @isOpen={{@isUserMenuOpen}}
+          @onToggle={{@toggleUserMenu}}
+          @placement="bottom-end"
+        >
+          <:trigger>
+            <button
+              type="button"
+              id="user-menu-trigger"
+              class="user-menu-trigger"
+              aria-haspopup="true"
+              aria-expanded={{if @isUserMenuOpen "true" "false"}}
+              {{on "click" @toggleUserMenu}}
+            >
+              <UserAvatar @user={{@currentUser}} @size="sm" />
+              <span class="user-name">{{@currentUser.displayName}}</span>
+              <ChevronIcon @direction={{if @isUserMenuOpen "up" "down"}} @size="xs" />
+            </button>
+          </:trigger>
+          <:content>
+            <nav class="user-menu" aria-label="User menu">
+              <div class="user-menu-header">
+                <UserAvatar @user={{@currentUser}} @size="lg" />
+                <div class="user-menu-info">
+                  <strong>{{@currentUser.displayName}}</strong>
+                  <span class="user-email">{{@currentUser.email}}</span>
+                  <span
+                    class="user-role badge badge-{{@currentUser.role}}"
+                  >{{@currentUser.role}}</span>
+                </div>
+              </div>
+              <ul class="user-menu-items" role="menu">
+                <li role="menuitem"><a href="/profile">Profile</a></li>
+                <li role="menuitem"><a href="/settings">Settings</a></li>
+                <li role="menuitem"><a href="/billing">Billing</a></li>
+                <li class="menu-divider" role="separator"></li>
+                <li role="menuitem">
+                  <button type="button" {{on "click" @logout}}>Sign out</button>
+                </li>
+              </ul>
+            </nav>
+          </:content>
+        </DropdownMenu>
+      </nav>
+    </div>
+  </header>
+
+  {{! ===== MAIN LAYOUT: SIDEBAR + CONTENT ===== }}
+  <div class="app-body {{if @isSidebarOpen 'sidebar-open' 'sidebar-closed'}}">
+
+    {{! ===== SIDEBAR NAVIGATION ===== }}
+    <aside
+      class="app-sidebar {{if @isSidebarCollapsed 'collapsed'}}"
+      role="navigation"
+      aria-label="Main navigation"
+    >
+      <nav class="sidebar-nav">
+        <ul class="nav-list" role="menubar">
+          {{#each @navigationItems as |navGroup groupIndex|}}
+            <li class="nav-group" role="none">
+              {{#if navGroup.label}}
+                <span class="nav-group-label" id="nav-group-{{groupIndex}}">
+                  {{navGroup.label}}
+                </span>
+              {{/if}}
+              <ul class="nav-group-items" role="menu" aria-labelledby="nav-group-{{groupIndex}}">
+                {{#each navGroup.items as |navItem|}}
+                  <li
+                    class="nav-item {{if (eq @currentRoute navItem.route) 'active'}}"
+                    role="menuitem"
+                  >
+                    <a
+                      href={{navItem.route}}
+                      class="nav-link"
+                      aria-current={{if (eq @currentRoute navItem.route) "page"}}
+                    >
+                      <DynamicIcon @name={{navItem.icon}} @size="sm" />
+                      <span class="nav-label">{{navItem.label}}</span>
+                      {{#if navItem.badge}}
+                        <span class="nav-badge badge badge-{{navItem.badge.variant}}">
+                          {{navItem.badge.text}}
+                        </span>
+                      {{/if}}
+                    </a>
+                    {{#if navItem.children}}
+                      <ul class="nav-submenu" role="menu">
+                        {{#each navItem.children as |child|}}
+                          <li role="menuitem">
+                            <a
+                              href={{child.route}}
+                              class="nav-sublink {{if (eq @currentRoute child.route) 'active'}}"
+                              aria-current={{if (eq @currentRoute child.route) "page"}}
+                            >
+                              {{child.label}}
+                            </a>
+                          </li>
+                        {{/each}}
+                      </ul>
+                    {{/if}}
+                  </li>
+                {{/each}}
+              </ul>
+            </li>
+          {{/each}}
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button
+          type="button"
+          class="sidebar-collapse-btn"
+          aria-label={{if @isSidebarCollapsed "Expand sidebar" "Collapse sidebar"}}
+          {{on "click" @toggleSidebarCollapse}}
+        >
+          <ChevronIcon @direction={{if @isSidebarCollapsed "right" "left"}} />
+        </button>
+      </div>
+    </aside>
+
+    {{! ===== MAIN CONTENT AREA ===== }}
+    <main id="main-content" class="app-main" role="main">
+
+      {{! ===== BREADCRUMBS ===== }}
+      {{#if @breadcrumbs}}
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <ol>
+            {{#each @breadcrumbs as |crumb index|}}
+              <li class={{if (eq index (sub @breadcrumbs.length 1)) "current"}}>
+                {{#if (eq index (sub @breadcrumbs.length 1))}}
+                  <span aria-current="page">{{crumb.label}}</span>
+                {{else}}
+                  <a href={{crumb.route}}>{{crumb.label}}</a>
+                  <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                {{/if}}
+              </li>
+            {{/each}}
+          </ol>
+        </nav>
+      {{/if}}
+
+      {{! ===== PAGE HEADER ===== }}
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">{{@pageTitle}}</h1>
+          {{#if @pageSubtitle}}
+            <p class="page-subtitle">{{@pageSubtitle}}</p>
+          {{/if}}
+        </div>
+        <div class="page-header-actions">
+          {{#each @pageActions as |action|}}
+            <Button
+              @variant={{action.variant}}
+              @size="md"
+              @disabled={{action.disabled}}
+              @onClick={{action.handler}}
+              @icon={{action.icon}}
+            >
+              {{action.label}}
+            </Button>
+          {{/each}}
+        </div>
+      </div>
+
+      {{! ===== DASHBOARD SECTION ===== }}
+      {{#if (eq @currentPage "dashboard")}}
+        <section class="dashboard" aria-label="Dashboard">
+          {{! Stats Cards }}
+          <div class="stats-grid">
+            {{#each @dashboardStats as |stat|}}
+              <StatCard
+                @title={{stat.title}}
+                @value={{stat.value}}
+                @change={{stat.change}}
+                @changeDirection={{stat.changeDirection}}
+                @icon={{stat.icon}}
+                @color={{stat.color}}
+              >
+                <:footer>
+                  <span class="stat-trend {{stat.changeDirection}}">
+                    {{#if (eq stat.changeDirection "up")}}
+                      <ArrowUpIcon @size="xs" />
+                    {{else if (eq stat.changeDirection "down")}}
+                      <ArrowDownIcon @size="xs" />
+                    {{else}}
+                      <MinusIcon @size="xs" />
+                    {{/if}}
+                    {{stat.change}}% vs last period
+                  </span>
+                </:footer>
+              </StatCard>
+            {{/each}}
+          </div>
+
+          {{! Recent Activity Feed }}
+          <div class="dashboard-grid">
+            <div class="dashboard-panel activity-panel">
+              <div class="panel-header">
+                <h2>Recent Activity</h2>
+                <a href="/activity" class="view-all-link">View all</a>
+              </div>
+              <ul class="activity-feed" role="feed">
+                {{#each @recentActivity as |activity|}}
+                  <li class="activity-item" role="article">
+                    <div class="activity-icon-wrapper bg-{{activity.type}}">
+                      <DynamicIcon @name={{activity.icon}} @size="xs" />
+                    </div>
+                    <div class="activity-content">
+                      <p>
+                        <strong>{{activity.actor.name}}</strong>
+                        {{activity.description}}
+                        {{#if activity.target}}
+                          <a href={{activity.target.url}} class="activity-target">
+                            {{activity.target.name}}
+                          </a>
+                        {{/if}}
+                      </p>
+                      <time datetime={{activity.timestamp}}>
+                        {{time-ago activity.timestamp}}
+                      </time>
+                    </div>
+                  </li>
+                {{else}}
+                  <li class="activity-empty">
+                    <EmptyState @icon="activity" @message="No recent activity" />
+                  </li>
+                {{/each}}
+              </ul>
+            </div>
+
+            {{! Quick Actions Panel }}
+            <div class="dashboard-panel quick-actions-panel">
+              <div class="panel-header">
+                <h2>Quick Actions</h2>
+              </div>
+              <div class="quick-actions-grid">
+                {{#each @quickActions as |action|}}
+                  <button
+                    type="button"
+                    class="quick-action-card"
+                    disabled={{action.disabled}}
+                    {{on "click" action.handler}}
+                  >
+                    <DynamicIcon
+                      @name={{action.icon}}
+                      @size="lg"
+                      class="qa-icon color-{{action.color}}"
+                    />
+                    <span class="qa-label">{{action.label}}</span>
+                    {{#if action.description}}
+                      <span class="qa-desc">{{action.description}}</span>
+                    {{/if}}
+                  </button>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+
+          {{! Charts Row }}
+          <div class="charts-row">
+            <ChartPanel
+              @title="Revenue Over Time"
+              @type="line"
+              @data={{@revenueChartData}}
+              @isLoading={{@isLoadingCharts}}
+            >
+              <:toolbar>
+                <SegmentedControl
+                  @value={{@revenueTimeRange}}
+                  @onChange={{@setRevenueTimeRange}}
+                  @options={{array
+                    (hash value="7d" label="7D")
+                    (hash value="30d" label="30D")
+                    (hash value="90d" label="90D")
+                    (hash value="1y" label="1Y")
+                  }}
+                />
+              </:toolbar>
+            </ChartPanel>
+            <ChartPanel
+              @title="Users by Region"
+              @type="donut"
+              @data={{@regionChartData}}
+              @isLoading={{@isLoadingCharts}}
+            />
+          </div>
+        </section>
+      {{/if}}
+
+      {{! ===== DATA TABLE SECTION ===== }}
+      {{#if (eq @currentPage "users")}}
+        <section class="data-table-section" aria-label="Users management">
+          {{! Filters Bar }}
+          <div class="filters-bar">
+            <div class="filters-left">
+              <SearchInput
+                @value={{@tableSearchQuery}}
+                @placeholder="Search users..."
+                @onInput={{@setTableSearch}}
+                {{on "input" @setTableSearch}}
+              />
+              <DropdownFilter
+                @label="Role"
+                @value={{@roleFilter}}
+                @options={{@roleOptions}}
+                @onChange={{@setRoleFilter}}
+              />
+              <DropdownFilter
+                @label="Status"
+                @value={{@statusFilter}}
+                @options={{@statusOptions}}
+                @onChange={{@setStatusFilter}}
+              />
+              <DateRangePicker
+                @startDate={{@filterStartDate}}
+                @endDate={{@filterEndDate}}
+                @onChange={{@setDateRange}}
+              />
+            </div>
+            <div class="filters-right">
+              {{#if @hasActiveFilters}}
+                <button type="button" class="clear-filters-btn" {{on "click" @clearAllFilters}}>
+                  Clear filters
+                </button>
+              {{/if}}
+              <Button @variant="secondary" @icon="download" @onClick={{@exportData}}>
+                Export
+              </Button>
+              <Button @variant="primary" @icon="plus" @onClick={{@openCreateUserModal}}>
+                Add User
+              </Button>
+            </div>
+          </div>
+
+          {{! Bulk Actions }}
+          {{#if @selectedRowIds.length}}
+            <div class="bulk-actions-bar" role="toolbar" aria-label="Bulk actions">
+              <span class="selected-count">{{@selectedRowIds.length}} selected</span>
+              <Button @variant="ghost" @size="sm" @onClick={{@bulkActivate}}>Activate</Button>
+              <Button @variant="ghost" @size="sm" @onClick={{@bulkDeactivate}}>Deactivate</Button>
+              <Button @variant="danger-ghost" @size="sm" @onClick={{@bulkDelete}}>Delete</Button>
+            </div>
+          {{/if}}
+
+          {{! Data Table }}
+          <div class="table-container" role="region" aria-label="Users table" tabindex="0">
+            <table class="data-table" aria-describedby="table-caption">
+              <caption id="table-caption" class="sr-only">Users list with sorting and actions</caption>
+              <thead>
+                <tr>
+                  <th class="checkbox-col">
+                    <Checkbox
+                      @checked={{@isAllSelected}}
+                      @indeterminate={{@isSomeSelected}}
+                      @onChange={{@toggleSelectAll}}
+                      aria-label="Select all rows"
+                    />
+                  </th>
+                  {{#each @tableColumns as |column|}}
+                    <th
+                      class="{{if column.sortable 'sortable'}}
+                        {{if (eq @sortColumn column.key) 'sorted'}}"
+                      aria-sort={{if
+                        (eq @sortColumn column.key)
+                        (if (eq @sortDirection "asc") "ascending" "descending")
+                        "none"
+                      }}
+                    >
+                      {{#if column.sortable}}
+                        <button
+                          type="button"
+                          class="sort-btn"
+                          {{on "click" (fn @setSortColumn column.key)}}
+                        >
+                          {{column.label}}
+                          {{#if (eq @sortColumn column.key)}}
+                            <SortIcon @direction={{@sortDirection}} @size="xs" />
+                          {{/if}}
+                        </button>
+                      {{else}}
+                        {{column.label}}
+                      {{/if}}
+                    </th>
+                  {{/each}}
+                  <th class="actions-col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#each @tableData as |row rowIndex|}}
+                  <tr
+                    class="{{if (includes @selectedRowIds row.id) 'selected'}}
+                      {{if (eq @hoveredRowId row.id) 'hovered'}}"
+                    data-row-id={{row.id}}
+                  >
+                    <td class="checkbox-col">
+                      <Checkbox
+                        @checked={{includes @selectedRowIds row.id}}
+                        @onChange={{fn @toggleRowSelection row.id}}
+                        aria-label="Select row {{row.name}}"
+                      />
+                    </td>
+                    <td class="user-cell">
+                      <div class="user-cell-inner">
+                        <UserAvatar @user={{row}} @size="sm" />
+                        <div class="user-cell-info">
+                          <span class="user-cell-name">{{row.name}}</span>
+                          <span class="user-cell-email">{{row.email}}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge badge-{{row.role}}">{{row.role}}</span>
+                    </td>
+                    <td>
+                      <StatusIndicator @status={{row.status}} />
+                    </td>
+                    <td>
+                      <time datetime={{row.lastLogin}}>{{format-date row.lastLogin}}</time>
+                    </td>
+                    <td>
+                      {{#if row.teams}}
+                        <div class="tags-cell">
+                          {{#each (take 2 row.teams) as |team|}}
+                            <span class="tag">{{team.name}}</span>
+                          {{/each}}
+                          {{#if (gt row.teams.length 2)}}
+                            <Tooltip @text={{join ", " (map-by "name" (drop 2 row.teams))}}>
+                              <span class="tag tag-more">+{{sub row.teams.length 2}}</span>
+                            </Tooltip>
+                          {{/if}}
+                        </div>
+                      {{else}}
+                        <span class="text-muted">None</span>
+                      {{/if}}
+                    </td>
+                    <td class="actions-col">
+                      <DropdownMenu @placement="bottom-end">
+                        <:trigger>
+                          <button
+                            type="button"
+                            class="row-actions-btn"
+                            aria-label="Actions for {{row.name}}"
+                          >
+                            <EllipsisIcon @size="sm" />
+                          </button>
+                        </:trigger>
+                        <:content>
+                          <ul class="context-menu" role="menu">
+                            <li role="menuitem">
+                              <button type="button" {{on "click" (fn @editUser row)}}>
+                                <PencilIcon @size="xs" />
+                                Edit
+                              </button>
+                            </li>
+                            <li role="menuitem">
+                              <button type="button" {{on "click" (fn @viewUserDetails row)}}>
+                                <EyeIcon @size="xs" />
+                                View Details
+                              </button>
+                            </li>
+                            {{#if (eq row.status "active")}}
+                              <li role="menuitem">
+                                <button type="button" {{on "click" (fn @deactivateUser row)}}>
+                                  <PauseIcon @size="xs" />
+                                  Deactivate
+                                </button>
+                              </li>
+                            {{else}}
+                              <li role="menuitem">
+                                <button type="button" {{on "click" (fn @activateUser row)}}>
+                                  <PlayIcon @size="xs" />
+                                  Activate
+                                </button>
+                              </li>
+                            {{/if}}
+                            <li class="menu-divider" role="separator"></li>
+                            <li role="menuitem">
+                              <button
+                                type="button"
+                                class="danger"
+                                {{on "click" (fn @deleteUser row)}}
+                              >
+                                <TrashIcon @size="xs" />
+                                Delete
+                              </button>
+                            </li>
+                          </ul>
+                        </:content>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                {{else}}
+                  <tr>
+                    <td colspan={{add @tableColumns.length 2}} class="empty-table-cell">
+                      {{#if @tableSearchQuery}}
+                        <EmptyState
+                          @icon="search"
+                          @title="No users found"
+                          @message="Try adjusting your search or filters"
+                        >
+                          <Button @variant="secondary" @onClick={{@clearAllFilters}}>
+                            Clear filters
+                          </Button>
+                        </EmptyState>
+                      {{else}}
+                        <EmptyState
+                          @icon="users"
+                          @title="No users yet"
+                          @message="Get started by adding your first user"
+                        >
+                          <Button @variant="primary" @onClick={{@openCreateUserModal}}>
+                            Add User
+                          </Button>
+                        </EmptyState>
+                      {{/if}}
+                    </td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+
+          {{! Pagination }}
+          <div class="table-footer">
+            <div class="table-info">
+              Showing
+              {{add (mult @currentPageNum @pageSize) 1}}
+              to
+              {{min (mult (add @currentPageNum 1) @pageSize) @totalItems}}
+              of
+              {{@totalItems}}
+              results
+            </div>
+            <Pagination
+              @currentPage={{@currentPageNum}}
+              @totalPages={{@totalPages}}
+              @onPageChange={{@goToPage}}
+              @pageSize={{@pageSize}}
+              @pageSizeOptions={{array 10 25 50 100}}
+              @onPageSizeChange={{@setPageSize}}
+            />
+          </div>
+        </section>
+      {{/if}}
+
+      {{! ===== FORM WIZARD SECTION ===== }}
+      {{#if (eq @currentPage "create-project")}}
+        <section class="form-wizard" aria-label="Create project wizard">
+          <div class="wizard-steps" role="tablist">
+            {{#each @wizardSteps as |step stepIndex|}}
+              <div
+                class="wizard-step
+                  {{if (eq stepIndex @activeWizardStep) 'active'}}
+                  {{if (lt stepIndex @activeWizardStep) 'completed'}}
+                  {{if (gt stepIndex @activeWizardStep) 'upcoming'}}"
+                role="tab"
+                aria-selected={{if (eq stepIndex @activeWizardStep) "true" "false"}}
+                aria-controls="wizard-panel-{{stepIndex}}"
+              >
+                <div class="step-indicator">
+                  {{#if (lt stepIndex @activeWizardStep)}}
+                    <CheckIcon @size="sm" />
+                  {{else}}
+                    <span class="step-number">{{add stepIndex 1}}</span>
+                  {{/if}}
+                </div>
+                <div class="step-info">
+                  <span class="step-title">{{step.title}}</span>
+                  <span class="step-description">{{step.description}}</span>
+                </div>
+              </div>
+            {{/each}}
+          </div>
+
+          {{! Step 1: Basic Info }}
+          {{#if (eq @activeWizardStep 0)}}
+            <div id="wizard-panel-0" class="wizard-panel" role="tabpanel">
+              <h2>Basic Information</h2>
+              <form class="wizard-form" {{on "submit" @preventSubmit}}>
+                <FormField @label="Project Name" @required={{true}} @error={{@errors.projectName}}>
+                  <TextInput
+                    @value={{@formData.projectName}}
+                    @onChange={{fn @updateFormField "projectName"}}
+                    @placeholder="Enter project name"
+                    aria-required="true"
+                    aria-invalid={{if @errors.projectName "true" "false"}}
+                    aria-describedby={{if @errors.projectName "error-projectName"}}
+                  />
+                </FormField>
+                <FormField @label="Description" @error={{@errors.description}}>
+                  <Textarea
+                    @value={{@formData.description}}
+                    @onChange={{fn @updateFormField "description"}}
+                    @placeholder="Describe your project..."
+                    @rows={{4}}
+                    @maxLength={{500}}
+                  />
+                  <span class="char-count">{{@formData.description.length}} / 500</span>
+                </FormField>
+                <div class="form-row">
+                  <FormField @label="Category" @required={{true}}>
+                    <Select
+                      @value={{@formData.category}}
+                      @onChange={{fn @updateFormField "category"}}
+                      @options={{@categoryOptions}}
+                      @placeholder="Select a category"
+                    />
+                  </FormField>
+                  <FormField @label="Priority">
+                    <RadioGroup
+                      @value={{@formData.priority}}
+                      @onChange={{fn @updateFormField "priority"}}
+                      @options={{array
+                        (hash value="low" label="Low")
+                        (hash value="medium" label="Medium")
+                        (hash value="high" label="High")
+                        (hash value="critical" label="Critical")
+                      }}
+                    />
+                  </FormField>
+                </div>
+                <FormField @label="Tags">
+                  <TagInput
+                    @tags={{@formData.tags}}
+                    @onAdd={{fn @addTag}}
+                    @onRemove={{fn @removeTag}}
+                    @suggestions={{@tagSuggestions}}
+                    @placeholder="Add tags..."
+                  />
+                </FormField>
+              </form>
+            </div>
+          {{/if}}
+
+          {{! Step 2: Review }}
+          {{#if (eq @activeWizardStep 3)}}
+            <div id="wizard-panel-3" class="wizard-panel" role="tabpanel">
+              <h2>Review & Create</h2>
+              <div class="review-summary">
+                <ReviewSection @title="Basic Information">
+                  <dl class="review-list">
+                    <dt>Name</dt>
+                    <dd>{{@formData.projectName}}</dd>
+                    <dt>Description</dt>
+                    <dd>{{or @formData.description "No description"}}</dd>
+                    <dt>Category</dt>
+                    <dd>{{@formData.category}}</dd>
+                    <dt>Priority</dt>
+                    <dd><span
+                        class="badge badge-{{@formData.priority}}"
+                      >{{@formData.priority}}</span></dd>
+                    <dt>Tags</dt>
+                    <dd>
+                      {{#each @formData.tags as |tag|}}
+                        <span class="tag">{{tag}}</span>
+                      {{else}}
+                        <span class="text-muted">None</span>
+                      {{/each}}
+                    </dd>
+                  </dl>
+                </ReviewSection>
+                <ReviewSection @title="Team ({{@assignedMembers.length}} members)">
+                  <ul class="review-members">
+                    {{#each @assignedMembers as |member|}}
+                      <li>
+                        <UserAvatar @user={{member}} @size="xs" />
+                        <span>{{member.name}}</span>
+                        <span class="text-muted">({{member.projectRole}})</span>
+                      </li>
+                    {{/each}}
+                  </ul>
+                </ReviewSection>
+                <ReviewSection @title="Configuration">
+                  <dl class="review-list">
+                    <dt>Visibility</dt>
+                    <dd>{{if @formData.isPublic "Public" "Private"}}</dd>
+                    <dt>Integrations</dt>
+                    <dd>{{@formData.enabledIntegrations.length}} enabled</dd>
+                  </dl>
+                </ReviewSection>
+              </div>
+            </div>
+          {{/if}}
+
+          {{! Wizard Navigation }}
+          <div class="wizard-footer">
+            <Button
+              @variant="secondary"
+              @disabled={{eq @activeWizardStep 0}}
+              @onClick={{@previousWizardStep}}
+            >
+              Previous
+            </Button>
+            <div class="wizard-footer-right">
+              {{#if (eq @activeWizardStep (sub @wizardSteps.length 1))}}
+                <Button
+                  @variant="primary"
+                  @onClick={{@submitWizard}}
+                  @isLoading={{@isSubmittingWizard}}
+                >
+                  Create Project
+                </Button>
+              {{else}}
+                <Button @variant="primary" @onClick={{@nextWizardStep}}>
+                  Next
+                </Button>
+              {{/if}}
+            </div>
+          </div>
+        </section>
+      {{/if}}
+
+      {{yield}}
+
+    </main>
+  </div>
+
+  {{! ===== FOOTER ===== }}
+  <footer class="app-footer" role="contentinfo">
+    <div class="footer-content">
+      <div class="footer-left">
+        <BrandLogo @variant="muted" @size="sm" />
+        <span class="footer-copyright">&copy;
+          {{@currentYear}}
+          {{@companyName}}. All rights reserved.</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer navigation">
+        {{#each @footerLinks as |linkGroup|}}
+          <div class="footer-link-group">
+            <h4>{{linkGroup.title}}</h4>
+            <ul>
+              {{#each linkGroup.links as |link|}}
+                <li>
+                  <a
+                    href={{link.url}}
+                    target={{if link.external "_blank"}}
+                    rel={{if link.external "noopener noreferrer"}}
+                  >
+                    {{link.label}}
+                    {{#if link.external}}
+                      <ExternalLinkIcon @size="xs" />
+                    {{/if}}
+                  </a>
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/each}}
+      </nav>
+    </div>
+  </footer>
+
+  {{! ===== MODAL: CREATE/EDIT USER ===== }}
+  {{#if @isUserModalOpen}}
+    <Modal
+      @isOpen={{@isUserModalOpen}}
+      @onClose={{@closeUserModal}}
+      @size="lg"
+      @title={{if @editingUser "Edit User" "Create User"}}
+    >
+      <:body>
+        <form class="user-modal-form" id="user-form" {{on "submit" @saveUser}}>
+          <div class="form-row">
+            <FormField @label="First Name" @required={{true}} @error={{@userFormErrors.firstName}}>
+              <TextInput
+                @value={{@userForm.firstName}}
+                @onChange={{fn @updateUserFormField "firstName"}}
+                aria-required="true"
+              />
+            </FormField>
+            <FormField @label="Last Name" @required={{true}} @error={{@userFormErrors.lastName}}>
+              <TextInput
+                @value={{@userForm.lastName}}
+                @onChange={{fn @updateUserFormField "lastName"}}
+                aria-required="true"
+              />
+            </FormField>
+          </div>
+          <FormField @label="Email" @required={{true}} @error={{@userFormErrors.email}}>
+            <TextInput
+              @value={{@userForm.email}}
+              @onChange={{fn @updateUserFormField "email"}}
+              @type="email"
+              aria-required="true"
+            />
+          </FormField>
+          <div class="form-row">
+            <FormField @label="Role" @required={{true}}>
+              <Select
+                @value={{@userForm.role}}
+                @onChange={{fn @updateUserFormField "role"}}
+                @options={{@roleOptions}}
+              />
+            </FormField>
+            <FormField @label="Department">
+              <Select
+                @value={{@userForm.department}}
+                @onChange={{fn @updateUserFormField "department"}}
+                @options={{@departmentOptions}}
+                @placeholder="Select department"
+              />
+            </FormField>
+          </div>
+          {{#unless @editingUser}}
+            <FormField @label="Send Invitation Email">
+              <ToggleSwitch
+                @checked={{@userForm.sendInvite}}
+                @onChange={{fn @updateUserFormField "sendInvite"}}
+                @label="Send an invitation email to the new user"
+              />
+            </FormField>
+          {{/unless}}
+          <FormField @label="Permissions">
+            <div class="permissions-grid">
+              {{#each @permissionGroups as |group|}}
+                <div class="permission-group">
+                  <Checkbox
+                    @checked={{group.allChecked}}
+                    @indeterminate={{group.someChecked}}
+                    @onChange={{fn @togglePermissionGroup group.id}}
+                    @label={{group.label}}
+                  />
+                  <div class="permission-items">
+                    {{#each group.permissions as |perm|}}
+                      <Checkbox
+                        @checked={{includes @userForm.permissions perm.id}}
+                        @onChange={{fn @togglePermission perm.id}}
+                        @label={{perm.label}}
+                        @size="sm"
+                      />
+                    {{/each}}
+                  </div>
+                </div>
+              {{/each}}
+            </div>
+          </FormField>
+        </form>
+      </:body>
+      <:footer>
+        <div class="modal-footer-actions">
+          <Button @variant="secondary" @onClick={{@closeUserModal}}>
+            Cancel
+          </Button>
+          <Button
+            @variant="primary"
+            @type="submit"
+            @form="user-form"
+            @isLoading={{@isSavingUser}}
+            @disabled={{@userFormHasErrors}}
+          >
+            {{if @editingUser "Save Changes" "Create User"}}
+          </Button>
+        </div>
+      </:footer>
+    </Modal>
+  {{/if}}
+
+  {{! ===== MODAL: CONFIRM DELETE ===== }}
+  {{#if @isDeleteConfirmOpen}}
+    <Modal
+      @isOpen={{@isDeleteConfirmOpen}}
+      @onClose={{@closeDeleteConfirm}}
+      @size="sm"
+      @variant="danger"
+      @title="Confirm Deletion"
+    >
+      <:body>
+        <div class="confirm-delete-body">
+          <WarningIcon @size="xl" class="text-danger" />
+          <p>
+            Are you sure you want to delete
+            <strong>{{@deleteTarget.name}}</strong>? This action cannot be undone.
+          </p>
+          {{#if @deleteTarget.dependents}}
+            <div class="delete-dependents-warning" role="alert">
+              <p>The following items will also be affected:</p>
+              <ul>
+                {{#each @deleteTarget.dependents as |dep|}}
+                  <li>{{dep.type}}: {{dep.name}}</li>
+                {{/each}}
+              </ul>
+            </div>
+          {{/if}}
+          <FormField @label="Type the name to confirm" @required={{true}}>
+            <TextInput
+              @value={{@deleteConfirmText}}
+              @onChange={{@setDeleteConfirmText}}
+              @placeholder={{@deleteTarget.name}}
+            />
+          </FormField>
+        </div>
+      </:body>
+      <:footer>
+        <Button @variant="secondary" @onClick={{@closeDeleteConfirm}}>
+          Cancel
+        </Button>
+        <Button
+          @variant="danger"
+          @onClick={{@confirmDelete}}
+          @disabled={{not (eq @deleteConfirmText @deleteTarget.name)}}
+          @isLoading={{@isDeleting}}
+        >
+          Delete Permanently
+        </Button>
+      </:footer>
+    </Modal>
+  {{/if}}
+
+  {{! ===== TOAST NOTIFICATIONS ===== }}
+  <div class="toast-container" aria-live="polite" aria-atomic="true">
+    {{#each @toasts as |toast|}}
+      <Toast
+        @type={{toast.type}}
+        @message={{toast.message}}
+        @title={{toast.title}}
+        @duration={{toast.duration}}
+        @onDismiss={{fn @dismissToast toast.id}}
+      >
+        {{#if toast.action}}
+          <Button @variant="ghost" @size="sm" @onClick={{toast.action.handler}}>
+            {{toast.action.label}}
+          </Button>
+        {{/if}}
+      </Toast>
+    {{/each}}
+  </div>
+
+</div>
