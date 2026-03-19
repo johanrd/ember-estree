@@ -149,4 +149,17 @@ const Badge = <template><span>hi</span></template>;
     expect(printed).toContain("Red");
     expect(printed).toContain("Blue = 1");
   });
+
+  it("handles filePath with gts extension", () => {
+    const source = `type Arg = { name: string };
+export default class MyComponent extends Component<Arg> {
+  <template><h1>Hello</h1></template>
+}
+`;
+    const ast = parse(source, { filePath: "/some/path/to/MyComponent.gts" });
+    expect(ast.type).toBe("File");
+
+    const template = findNode(ast, "GlimmerTemplate");
+    expect(template).toBeTruthy();
+  });
 });
