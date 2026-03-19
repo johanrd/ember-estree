@@ -55,36 +55,6 @@ export const glimmerVisitorKeys = (() => {
 
 // ── Internal helpers ──────────────────────────────────────────────────
 
-/**
- * Collect and categorize all nodes using @glimmer/syntax's traverse.
- */
-function collectNodes(ast) {
-  const allNodes = [];
-  const comments = [];
-  const textNodes = [];
-  const emptyTextNodes = [];
-
-  glimmerTraverse(ast, {
-    All(node, path) {
-      node.parent = path.parentNode;
-      allNodes.push(node);
-      if (node.type === "CommentStatement" || node.type === "MustacheCommentStatement") {
-        comments.push(node);
-      }
-      if (node.type === "TextNode") {
-        node.value = node.chars;
-        if (node.value.trim().length !== 0 || (node.parent && node.parent.type === "AttrNode")) {
-          textNodes.push(node);
-        } else {
-          emptyTextNodes.push(node);
-        }
-      }
-    },
-  });
-
-  return { allNodes, comments, textNodes, emptyTextNodes };
-}
-
 // @glimmer/syntax nodes use prototype getters that form circular chains,
 // crashing traversers like esrecurse. We snapshot ALL getters to plain
 // own properties right after collection. Complete getter inventory:
@@ -217,101 +187,130 @@ export function processTemplate(
   });
 
   const ast = glimmerPreprocess(templateContent, { mode: "codemod" });
-  const { allNodes, comments, textNodes, emptyTextNodes } = collectNodes(ast);
+  const allNodes = [];
+  const comments = [];
+  const textNodes = [];
+  const emptyTextNodes = [];
 
-  for (const n of allNodes) {
-    // Snapshot configurable prototype getters to plain own properties.
-    // Only these are configurable (parts/this/data/escaped are not):
-    switch (n.type) {
-      case "ElementNode":
-        defOwn(n, "tag");
-        defOwn(n, "blockParams");
-        defOwn(n, "selfClosing");
-        if (n.path?.head) {
-          defOwn(n.path.head, "name");
-          defOwn(n.path.head, "original");
-        }
-        break;
-      case "PathExpression":
-        defOwn(n, "original");
-        if (n.head) {
-          defOwn(n.head, "name");
-          defOwn(n.head, "original");
-        }
-        break;
-      case "Block":
-        defOwn(n, "blockParams");
-        break;
-    }
-    if (n.type === "PathExpression") {
-      n.head.range = toFileRange(n.head.loc);
-      n.head.start = n.head.range[0];
-      n.head.end = n.head.range[1];
-      n.head.loc = toFileLoc(n.head.range);
-    }
+  // Single traverse: collect, snapshot getters, fix positions, transform — all in one pass
+  glimmerTraverse(ast, {
+    All(node, path) {
+      const n = node;
+      n.parent = path.parentNode;
+      allNodes.push(n);
 
-    n.range = n.type === "Template" ? [...templateRange] : toFileRange(n.loc);
-    n.start = n.range[0];
-    n.end = n.range[1];
-    n.loc = toFileLoc(n.range);
-
-    if (n.type === "ElementNode") {
-      n.name = n.tag;
-      const p = n.path.head;
-      const partRange = toFileRange(p.loc);
-      n.parts = [
-        {
-          type: "GlimmerElementNodePart",
-          original: p.original,
-          name: p.original,
-          parent: n,
-          range: partRange,
-          start: partRange[0],
-          end: partRange[1],
-          loc: toFileLoc(partRange),
-        },
-      ];
-    }
-
-    if ("blockParams" in n && Array.isArray(n.blockParams)) {
-      if (n.params && n.params.length === n.blockParams.length) {
-        n.blockParamNodes = n.params.map((p) => {
-          const range = toFileRange(p.loc);
-          return {
-            type: "GlimmerBlockParam",
-            name: p.original || p.name,
-            original: p.original,
-            parent: n,
-            range,
-            start: range[0],
-            end: range[1],
-            loc: toFileLoc(range),
-          };
-        });
-      } else {
-        n.blockParamNodes = n.blockParams.map((name) => ({
-          type: "GlimmerBlockParam",
-          name,
-          parent: n,
-          range: [n.range[0], n.range[1]],
-          start: n.range[0],
-          end: n.range[1],
-          loc: toFileLoc(n.range),
-        }));
+      // Categorize
+      if (n.type === "CommentStatement" || n.type === "MustacheCommentStatement") {
+        comments.push(n);
       }
-    }
+      if (n.type === "TextNode") {
+        n.value = n.chars;
+        if (n.value.trim().length !== 0 || (n.parent && n.parent.type === "AttrNode")) {
+          textNodes.push(n);
+        } else {
+          emptyTextNodes.push(n);
+        }
+      }
 
-    if (
-      (n.type === "MustacheStatement" ||
-        n.type === "BlockStatement" ||
-        n.type === "SubExpression") &&
-      n.hash &&
-      n.hash.pairs &&
-      n.hash.pairs.length === 0
-    ) {
-      n.hash = null;
-    }
+      // Snapshot configurable prototype getters
+      switch (n.type) {
+        case "ElementNode":
+          defOwn(n, "tag");
+          defOwn(n, "blockParams");
+          defOwn(n, "selfClosing");
+          if (n.path?.head) {
+            defOwn(n.path.head, "name");
+            defOwn(n.path.head, "original");
+          }
+          break;
+        case "PathExpression":
+          defOwn(n, "original");
+          if (n.head) {
+            defOwn(n.head, "name");
+            defOwn(n.head, "original");
+          }
+          break;
+        case "Block":
+          defOwn(n, "blockParams");
+          break;
+      }
 
+      // Fix positions
+      if (n.type === "PathExpression") {
+        n.head.range = toFileRange(n.head.loc);
+        n.head.start = n.head.range[0];
+        n.head.end = n.head.range[1];
+        n.head.loc = toFileLoc(n.head.range);
+      }
+
+      n.range = n.type === "Template" ? [...templateRange] : toFileRange(n.loc);
+      n.start = n.range[0];
+      n.end = n.range[1];
+      n.loc = toFileLoc(n.range);
+
+      // Create parts for ElementNode
+      if (n.type === "ElementNode") {
+        n.name = n.tag;
+        const p = n.path.head;
+        const partRange = toFileRange(p.loc);
+        n.parts = [
+          {
+            type: "GlimmerElementNodePart",
+            original: p.original,
+            name: p.original,
+            parent: n,
+            range: partRange,
+            start: partRange[0],
+            end: partRange[1],
+            loc: toFileLoc(partRange),
+          },
+        ];
+      }
+
+      // Create blockParamNodes
+      if ("blockParams" in n && Array.isArray(n.blockParams)) {
+        if (n.params && n.params.length === n.blockParams.length) {
+          n.blockParamNodes = n.params.map((p) => {
+            const range = toFileRange(p.loc);
+            return {
+              type: "GlimmerBlockParam",
+              name: p.original || p.name,
+              original: p.original,
+              parent: n,
+              range,
+              start: range[0],
+              end: range[1],
+              loc: toFileLoc(range),
+            };
+          });
+        } else {
+          n.blockParamNodes = n.blockParams.map((bpName) => ({
+            type: "GlimmerBlockParam",
+            name: bpName,
+            parent: n,
+            range: [n.range[0], n.range[1]],
+            start: n.range[0],
+            end: n.range[1],
+            loc: toFileLoc(n.range),
+          }));
+        }
+      }
+
+      // Nullify empty hashes
+      if (
+        (n.type === "MustacheStatement" ||
+          n.type === "BlockStatement" ||
+          n.type === "SubExpression") &&
+        n.hash?.pairs?.length === 0
+      ) {
+        n.hash = null;
+      }
+    },
+  });
+
+  // Prefix types after traversal (can't do it during — glimmer's
+  // traverse uses the type to look up visitor keys for children)
+  for (const n of allNodes) {
     n.type = `Glimmer${n.type}`;
   }
 
