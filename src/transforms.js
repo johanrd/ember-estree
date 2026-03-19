@@ -89,11 +89,17 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
   }
 }
 
-// Reusable descriptor — shadows prototype getters with own properties.
-// @glimmer/syntax nodes have getter chains that cause esrecurse infinite recursion.
+// @glimmer/syntax nodes use prototype getters that form circular chains,
+// crashing traversers like esrecurse. We snapshot ALL getters to plain
+// own properties right after collection. Complete getter inventory:
+//   ElementNode: tag, blockParams, selfClosing
+//   PathExpression: original, parts, this, data
+//   VarHead: name, original
+//   Block: blockParams
+//   MustacheStatement: escaped
 const _desc = { value: undefined, configurable: true, enumerable: true, writable: true };
-function defOwn(obj, key, val) {
-  _desc.value = val;
+function defOwn(obj, key) {
+  _desc.value = obj[key];
   Object.defineProperty(obj, key, _desc);
 }
 
@@ -221,6 +227,29 @@ export function processTemplate(
   collectNodes(ast, null, allNodes, comments, textNodes, emptyTextNodes);
 
   for (const n of allNodes) {
+    // Snapshot configurable prototype getters to plain own properties.
+    // Only these are configurable (parts/this/data/escaped are not):
+    switch (n.type) {
+      case "ElementNode":
+        defOwn(n, "tag");
+        defOwn(n, "blockParams");
+        defOwn(n, "selfClosing");
+        if (n.path?.head) {
+          defOwn(n.path.head, "name");
+          defOwn(n.path.head, "original");
+        }
+        break;
+      case "PathExpression":
+        defOwn(n, "original");
+        if (n.head) {
+          defOwn(n.head, "name");
+          defOwn(n.head, "original");
+        }
+        break;
+      case "Block":
+        defOwn(n, "blockParams");
+        break;
+    }
     if (n.type === "PathExpression") {
       n.head.range = toFileRange(n.head.loc);
       n.head.start = n.head.range[0];
@@ -234,11 +263,8 @@ export function processTemplate(
     n.loc = toFileLoc(n.range);
 
     if (n.type === "ElementNode") {
-      defOwn(n, "tag", n.tag);
       n.name = n.tag;
       const p = n.path.head;
-      defOwn(p, "name", p.name);
-      defOwn(p, "original", p.original);
       const partRange = toFileRange(p.loc);
       n.parts = [
         {
@@ -257,8 +283,6 @@ export function processTemplate(
     if ("blockParams" in n && Array.isArray(n.blockParams)) {
       if (n.params && n.params.length === n.blockParams.length) {
         n.blockParamNodes = n.params.map((p) => {
-          defOwn(p, "name", p.name);
-          defOwn(p, "original", p.original);
           const range = toFileRange(p.loc);
           return {
             type: "GlimmerBlockParam",
@@ -296,12 +320,6 @@ export function processTemplate(
     }
 
     n.type = `Glimmer${n.type}`;
-
-    // Snapshot PathExpression.head getters (name/original)
-    if (n.type === "GlimmerPathExpression" && n.head) {
-      defOwn(n.head, "name", n.head.name);
-      defOwn(n.head, "original", n.head.original);
-    }
   }
 
   removeFromParent(emptyTextNodes);
