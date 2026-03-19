@@ -89,26 +89,12 @@ function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNode
   }
 }
 
-/**
- * Snapshot getter-heavy properties as plain values on a glimmer node.
- * @glimmer/syntax nodes use getter chains (tag→path→head→original)
- * that cause infinite recursion in esrecurse. We capture the values
- * once and replace the getters with plain properties.
- */
-// Reusable descriptor to avoid allocating one per defineProperty call
+// Reusable descriptor — shadows prototype getters with own properties.
+// @glimmer/syntax nodes have getter chains that cause esrecurse infinite recursion.
 const _desc = { value: undefined, configurable: true, enumerable: true, writable: true };
 function defOwn(obj, key, val) {
   _desc.value = val;
   Object.defineProperty(obj, key, _desc);
-}
-
-function snapshotElementNode(n) {
-  defOwn(n, "tag", n.tag);
-}
-
-function snapshotVarHead(head) {
-  defOwn(head, "name", head.name);
-  defOwn(head, "original", head.original);
 }
 
 function removeFromParent(nodes) {
@@ -243,10 +229,11 @@ export function processTemplate(templateContent, codeLines, templateRange) {
     n.loc = toFileLoc(n.range);
 
     if (n.type === "ElementNode") {
-      snapshotElementNode(n);
+      defOwn(n, "tag", n.tag);
       n.name = n.tag;
       const p = n.path.head;
-      snapshotVarHead(p);
+      defOwn(p, "name", p.name);
+      defOwn(p, "original", p.original);
       const partRange = toFileRange(p.loc);
       n.parts = [
         {
@@ -265,7 +252,8 @@ export function processTemplate(templateContent, codeLines, templateRange) {
     if ("blockParams" in n && Array.isArray(n.blockParams)) {
       if (n.params && n.params.length === n.blockParams.length) {
         n.blockParamNodes = n.params.map((p) => {
-          snapshotVarHead(p);
+          defOwn(p, "name", p.name);
+          defOwn(p, "original", p.original);
           const range = toFileRange(p.loc);
           return {
             type: "GlimmerBlockParam",
@@ -305,7 +293,10 @@ export function processTemplate(templateContent, codeLines, templateRange) {
     n.type = `Glimmer${n.type}`;
 
     // Snapshot PathExpression.head getters (name/original)
-    if (n.type === "GlimmerPathExpression" && n.head) snapshotVarHead(n.head);
+    if (n.type === "GlimmerPathExpression" && n.head) {
+      defOwn(n.head, "name", n.head.name);
+      defOwn(n.head, "original", n.head.original);
+    }
   }
 
   removeFromParent(emptyTextNodes);

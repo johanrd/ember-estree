@@ -40,7 +40,9 @@ const PLACEHOLDER_TYPES = new Set([
  */
 export function toTree(source, options = {}) {
   if (options.templateOnly) {
-    return toTemplateTree(source, options);
+    const codeLines = options.codeLines || new DocumentLines(source);
+    const templateRange = options.templateRange || [0, source.length];
+    return processTemplate(source, codeLines, templateRange);
   }
 
   let parseResults = preprocessor.parse(source);
@@ -154,21 +156,18 @@ export function toTree(source, options = {}) {
     return parseResult;
   }
 
-  // Invoke visitors for Glimmer nodes during traversal
-  function visitGlimmerNode(node, path) {
-    if (!visitors || !node.type || !node.type.startsWith("Glimmer")) return;
-    const handler = visitors[node.type];
-    if (handler) handler(node, path);
-    if ("blockParams" in node && visitors.GlimmerBlockParams) {
-      visitors.GlimmerBlockParams(node, path);
-    }
-  }
-
   // Walk Glimmer subtree, invoking visitors with full path context
   function walkGlimmerTree(node, parentPath) {
     if (!node || typeof node !== "object" || !node.type) return;
     const path = { node, parent: parentPath?.node ?? null, parentPath };
-    visitGlimmerNode(node, path);
+
+    if (visitors && node.type.startsWith("Glimmer")) {
+      const handler = visitors[node.type];
+      if (handler) handler(node, path);
+      if ("blockParams" in node && visitors.GlimmerBlockParams) {
+        visitors.GlimmerBlockParams(node, path);
+      }
+    }
 
     const keys = glimmerVisitorKeys[node.type];
     if (!keys) return;
@@ -296,24 +295,7 @@ export function toTree(source, options = {}) {
   return result.ast;
 }
 
-/**
- * @param {string} source
- * @param {object} [options]
- * @return {object}
- */
-export function parse(source, options = {}) {
-  return toTree(source, options);
-}
-
-// ── templateOnly mode ─────────────────────────────────────────────────
-
-function toTemplateTree(source, options) {
-  const codeLines = options.codeLines || new DocumentLines(source);
-  const templateRange = options.templateRange || [0, source.length];
-
-  const { ast, comments } = processTemplate(source, codeLines, templateRange);
-  return { ast, comments };
-}
+export const parse = toTree;
 
 // ── Placeholder JS ────────────────────────────────────────────────────
 
