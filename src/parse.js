@@ -74,13 +74,7 @@ export function toTree(source, options = {}) {
 
   // If no templates, return early
   if (!parseResults.length) {
-    if (useCustomParser) {
-      result.visitorKeys = {
-        ...result.visitorKeys,
-        ...glimmerVisitorKeys,
-      };
-      return result;
-    }
+    if (useCustomParser) return result;
     return result.ast;
   }
 
@@ -280,12 +274,6 @@ export function toTree(source, options = {}) {
     if (!astRoot.comments) astRoot.comments = [];
     astRoot.comments.push(...allComments);
   }
-
-  // Merge Glimmer visitor keys
-  result.visitorKeys = {
-    ...result.visitorKeys,
-    ...glimmerVisitorKeys,
-  };
 
   if (useCustomParser) {
     result.templateInfos = templateInfos;
