@@ -40,9 +40,7 @@ const PLACEHOLDER_TYPES = new Set([
  */
 export function toTree(source, options = {}) {
   if (options.templateOnly) {
-    const codeLines = options.codeLines || new DocumentLines(source);
-    const templateRange = options.templateRange || [0, source.length];
-    return processTemplate(source, codeLines, templateRange);
+    return processTemplate(source, new DocumentLines(source), [0, source.length]);
   }
 
   let parseResults = preprocessor.parse(source);

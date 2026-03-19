@@ -30,8 +30,6 @@ export interface VisitorPath {
 export interface ParseOptions {
   filePath?: string;
   templateOnly?: boolean;
-  templateRange?: [number, number];
-  codeLines?: DocumentLines;
   /**
    * Custom JS/TS parser. Called with the original source, content-tag
    * parseResults, and the placeholder JS string. Must return at least
