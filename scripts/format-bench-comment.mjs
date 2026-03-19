@@ -89,11 +89,15 @@ function buildSummary(json) {
   const rows = [];
   for (const [name, { control, experiment }] of pairs) {
     if (!control || !experiment) continue;
-    const delta = ((experiment.avg - control.avg) / control.avg) * 100;
+    // Use p50 (median) — far more robust to GC pauses and noisy-neighbor
+    // spikes on shared CI runners than the mean.
+    const ctrlVal = control.p50 ?? control.avg;
+    const expVal = experiment.p50 ?? experiment.avg;
+    const delta = ((expVal - ctrlVal) / ctrlVal) * 100;
     const emoji = deltaEmoji(delta);
     const sign = delta > 0 ? "+" : "";
     rows.push(
-      `| ${emoji} | ${name} | ${formatTime(control.avg)} | ${formatTime(experiment.avg)} | ${sign}${delta.toFixed(1)}% |`,
+      `| ${emoji} | ${name} | ${formatTime(ctrlVal)} | ${formatTime(expVal)} | ${sign}${delta.toFixed(1)}% |`,
     );
   }
 
@@ -101,7 +105,7 @@ function buildSummary(json) {
 
   return [
     "",
-    "| | Benchmark | Control (avg) | Experiment (avg) | Δ |",
+    "| | Benchmark | Control (p50) | Experiment (p50) | Δ |",
     "|---|---|---:|---:|---:|",
     ...rows,
     "",

@@ -89,7 +89,7 @@ const SIZES = ["small", "medium", "large"];
 // first-to-run parser pays the JIT compilation cost, creating order bias.
 // ---------------------------------------------------------------------------
 
-const WARMUP_ROUNDS = 5;
+const WARMUP_ROUNDS = 20;
 
 for (const { type, ext, experimentParse, controlParse } of PARSERS) {
   for (const size of SIZES) {
@@ -114,11 +114,14 @@ for (const { type, ext, experimentParse, controlParse } of PARSERS) {
     globalThis.gc?.();
 
     if (controlParse) {
-      // Side-by-side comparison with boxplots
+      // Side-by-side comparison with boxplots.
+      // .gc('inner') forces a full GC between every iteration so neither
+      // parser inherits the other's garbage — eliminates the biggest source
+      // of systematic bias on shared CI runners.
       boxplot(() => {
         summary(() => {
-          bench(`${type} ${size} (control)`, () => controlParse(code, opts));
-          bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts));
+          bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
+          bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
         });
       });
     } else {
