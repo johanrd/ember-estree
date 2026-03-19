@@ -2,6 +2,21 @@
 
 ## Release (2026-03-19)
 
+* ember-estree 0.4.1 (patch)
+
+#### :bug: Bug Fix
+* `ember-estree`
+  * [#26](https://github.com/NullVoxPopuli/ember-estree/pull/26) Convert Glimmer nodes to plain objects ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### :house: Internal
+* `ember-estree`
+  * [#24](https://github.com/NullVoxPopuli/ember-estree/pull/24) Add benchmark infrastructure with CI comparison ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- NullVoxPopuli's reduced-access account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-03-19)
+
 * ember-estree 0.4.0 (minor)
 
 #### :rocket: Enhancement
