@@ -105,6 +105,8 @@ for (const { type, ext, experimentParse, controlParse } of PARSERS) {
 
 globalThis.gc?.();
 
+let groupIndex = 0;
+
 for (const { type, ext, experimentParse, controlParse } of PARSERS) {
   for (const size of SIZES) {
     const code = FIXTURES[type][size];
@@ -118,10 +120,24 @@ for (const { type, ext, experimentParse, controlParse } of PARSERS) {
       // .gc('inner') forces a full GC between every iteration so neither
       // parser inherits the other's garbage — eliminates the biggest source
       // of systematic bias on shared CI runners.
+      //
+      // Alternate registration order: whichever parser runs first in a
+      // summary group gets a small advantage (warm instruction cache, more
+      // favourable thermal/frequency state).  By flipping the order on
+      // every other group the bias cancels out across the full run instead
+      // of always penalising the experiment.
+      const controlFirst = groupIndex % 2 === 0;
+      groupIndex++;
+
       boxplot(() => {
         summary(() => {
-          bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
-          bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
+          if (controlFirst) {
+            bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
+            bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
+          } else {
+            bench(`${type} ${size} (experiment)`, () => experimentParse(code, opts)).gc("inner");
+            bench(`${type} ${size} (control)`, () => controlParse(code, opts)).gc("inner");
+          }
         });
       });
     } else {
