@@ -5,6 +5,7 @@
 import {
   visitorKeys as rawGlimmerVisitorKeys,
   preprocess as glimmerPreprocess,
+  traverse as glimmerTraverse,
 } from "@glimmer/syntax";
 
 /**
@@ -55,38 +56,33 @@ export const glimmerVisitorKeys = (() => {
 // ── Internal helpers ──────────────────────────────────────────────────
 
 /**
- * Recursively collect all nodes in a Glimmer AST using visitor keys.
- * Sets parent references during traversal.
+ * Collect and categorize all nodes using @glimmer/syntax's traverse.
  */
-function collectNodes(node, parent, allNodes, comments, textNodes, emptyTextNodes) {
-  node.parent = parent;
-  allNodes.push(node);
-  if (node.type === "CommentStatement" || node.type === "MustacheCommentStatement") {
-    comments.push(node);
-  }
-  if (node.type === "TextNode") {
-    node.value = node.chars;
-    if (node.value.trim().length !== 0 || (parent && parent.type === "AttrNode")) {
-      textNodes.push(node);
-    } else {
-      emptyTextNodes.push(node);
-    }
-  }
-  const keys = rawGlimmerVisitorKeys[node.type];
-  if (!keys) return;
-  for (const key of keys) {
-    const child = node[key];
-    if (!child) continue;
-    if (Array.isArray(child)) {
-      for (const item of child) {
-        if (item && typeof item === "object" && item.type) {
-          collectNodes(item, node, allNodes, comments, textNodes, emptyTextNodes);
+function collectNodes(ast) {
+  const allNodes = [];
+  const comments = [];
+  const textNodes = [];
+  const emptyTextNodes = [];
+
+  glimmerTraverse(ast, {
+    All(node, path) {
+      node.parent = path.parentNode;
+      allNodes.push(node);
+      if (node.type === "CommentStatement" || node.type === "MustacheCommentStatement") {
+        comments.push(node);
+      }
+      if (node.type === "TextNode") {
+        node.value = node.chars;
+        if (node.value.trim().length !== 0 || (node.parent && node.parent.type === "AttrNode")) {
+          textNodes.push(node);
+        } else {
+          emptyTextNodes.push(node);
         }
       }
-    } else if (typeof child === "object" && child.type) {
-      collectNodes(child, node, allNodes, comments, textNodes, emptyTextNodes);
-    }
-  }
+    },
+  });
+
+  return { allNodes, comments, textNodes, emptyTextNodes };
 }
 
 // @glimmer/syntax nodes use prototype getters that form circular chains,
@@ -221,11 +217,7 @@ export function processTemplate(
   });
 
   const ast = glimmerPreprocess(templateContent, { mode: "codemod" });
-  const allNodes = [];
-  const comments = [];
-  const textNodes = [];
-  const emptyTextNodes = [];
-  collectNodes(ast, null, allNodes, comments, textNodes, emptyTextNodes);
+  const { allNodes, comments, textNodes, emptyTextNodes } = collectNodes(ast);
 
   for (const n of allNodes) {
     // Snapshot configurable prototype getters to plain own properties.
