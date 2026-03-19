@@ -208,7 +208,8 @@ export function processTemplate(
   { includeParentLinks = true } = {},
 ) {
   const offset = templateRange[0];
-  const docLines = new DocumentLines(templateContent);
+  // When offset is 0, codeLines and docLines are equivalent — skip the duplicate
+  const docLines = offset === 0 ? codeLines : new DocumentLines(templateContent);
 
   const toFileRange = (loc) => [
     offset + docLines.positionToOffset(loc.start),
