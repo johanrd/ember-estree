@@ -1,4 +1,4 @@
-import { toTree, print, removeParentReferences } from "ember-estree";
+import { toTree, print } from "ember-estree";
 
 /**
  * A zmod `Parser` adapter for ember-estree.
@@ -23,8 +23,7 @@ import { toTree, print, removeParentReferences } from "ember-estree";
  */
 export const emberParser = {
   parse(code) {
-    const ast = toTree(code);
-    removeParentReferences(ast);
+    const ast = toTree(code, { includeParentLinks: false });
     return ast;
   },
   print(node) {

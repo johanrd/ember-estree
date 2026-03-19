@@ -1,23 +1,8 @@
-/**
- * Options accepted by `parse` and `toTree`.
- */
-export interface ParseOptions {
-  /** Path to the file being parsed, used to determine the language (js/ts). */
-  filePath?: string;
-}
-
-/**
- * A 1-based line / 0-based column position, matching ESTree and Glimmer
- * conventions.
- */
 export interface Position {
   line: number;
   column: number;
 }
 
-/**
- * Minimal shape shared by every AST node (ESTree, TypeScript, and Glimmer).
- */
 export interface ASTNode {
   type: string;
   start?: number;
@@ -25,80 +10,55 @@ export interface ASTNode {
   [key: string]: unknown;
 }
 
-/**
- * The `File`-like wrapper returned by `toTree` and `parse`.
- *
- * Mirrors the shape produced internally:
- * ```
- * { type: "File", program: Program, comments: Comment[], start, end }
- * ```
- */
 export interface FileNode extends ASTNode {
   type: "File";
   program: ASTNode;
   comments: ASTNode[];
 }
 
-/**
- * Converts between character offsets and line/column positions within a
- * source string.
- */
+export interface TemplateResult {
+  ast: ASTNode;
+  comments: ASTNode[];
+}
+
+export interface VisitorPath {
+  node: ASTNode;
+  parent: ASTNode | null;
+  parentPath: VisitorPath | null;
+}
+
+export interface ParseOptions {
+  filePath?: string;
+  templateOnly?: boolean;
+  /**
+   * Include `parent` references on Glimmer AST nodes.
+   * Defaults to `true`. Set to `false` for JSON-serializable output.
+   */
+  includeParentLinks?: boolean;
+  /**
+   * Custom JS/TS parser. Called with the placeholder JS string
+   * (templates replaced with backtick expressions of equal length).
+   * Must return at least `{ ast }`.
+   */
+  parser?: (placeholderJS: string) => { ast: ASTNode; [key: string]: unknown };
+  /**
+   * Callbacks invoked for Glimmer nodes during the AST splice traversal.
+   * Runs in DFS order, so parent nodes are visited before children.
+   */
+  visitors?: {
+    [glimmerNodeType: string]: (node: ASTNode, path: VisitorPath) => void;
+    GlimmerBlockParams?: (node: ASTNode, path: VisitorPath) => void;
+  };
+}
+
 export class DocumentLines {
   constructor(source: string);
-
-  /** Converts a `{ line, column }` position to a character offset. */
   positionToOffset(pos: Position): number;
-
-  /** Converts a character offset to a `{ line, column }` position. */
   offsetToPosition(offset: number): Position;
 }
 
-/**
- * Parse Ember .gjs/.gts source code and return a File-like ESTree-compatible
- * AST with embedded Glimmer template nodes.
- *
- * @param source  The raw source code of the file.
- * @param options Optional parse options.
- * @returns A `File`-shaped object with a `.program` property.
- */
-export function toTree(source: string, options?: ParseOptions): FileNode;
-
-/**
- * Parse Ember .gjs/.gts source code into an ESTree-compatible AST with
- * embedded Glimmer template nodes.
- *
- * @param source  The source code to parse.
- * @param options Optional parse options.
- * @returns The ESTree-compatible AST.
- */
-export function parse(source: string, options?: ParseOptions): FileNode;
-
-/**
- * Recursively print an AST node back to source code.
- *
- * Handles ESTree, TypeScript, and Glimmer template node types.
- * JSX nodes are not supported — Ember uses Glimmer templates instead.
- *
- * @param node The AST node to print.
- * @returns The printed source string.
- */
+export function toTree(source: string, options?: ParseOptions): FileNode | TemplateResult;
+export function parse(source: string, options?: ParseOptions): FileNode | TemplateResult;
 export function print(node: ASTNode): string;
 
-/**
- * Build and return the Glimmer visitor keys map with a `"Glimmer"` prefix on
- * every key (e.g. `"GlimmerElementNode"`).
- *
- * The result is cached after the first call.
- *
- * @returns A map of Glimmer node type names to arrays of child-property names.
- */
-export function buildGlimmerVisitorKeys(): Record<string, string[]>;
-
-/**
- * Recursively remove all `parent` references from an AST.
- * Useful when you need to serialize the tree to JSON,
- * since parent back-references create circular structures.
- *
- * Mutates the tree in place and returns it.
- */
-export function removeParentReferences(ast: ASTNode): ASTNode;
+export const glimmerVisitorKeys: Record<string, string[]>;
