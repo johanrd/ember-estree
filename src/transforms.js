@@ -195,7 +195,12 @@ function buildTokenStream(rawTokens, comments, textNodes) {
  * Parse and transform a Glimmer template into an ESTree-compatible AST.
  * Internal — consumed by toTree.
  */
-export function processTemplate(templateContent, codeLines, templateRange) {
+export function processTemplate(
+  templateContent,
+  codeLines,
+  templateRange,
+  { includeParentLinks = true } = {},
+) {
   const offset = templateRange[0];
   const docLines = new DocumentLines(templateContent);
 
@@ -307,6 +312,14 @@ export function processTemplate(templateContent, codeLines, templateRange) {
 
   ast.tokens = buildTokenStream(tokenize(templateContent, codeLines, offset), comments, textNodes);
   ast.contents = templateContent;
+
+  if (!includeParentLinks) {
+    for (const n of allNodes) {
+      delete n.parent;
+      if (n.parts) for (const p of n.parts) delete p.parent;
+      if (n.blockParamNodes) for (const p of n.blockParamNodes) delete p.parent;
+    }
+  }
 
   return { ast, comments };
 }

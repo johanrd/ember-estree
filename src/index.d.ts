@@ -31,6 +31,11 @@ export interface ParseOptions {
   filePath?: string;
   templateOnly?: boolean;
   /**
+   * Include `parent` references on Glimmer AST nodes.
+   * Defaults to `true`. Set to `false` for JSON-serializable output.
+   */
+  includeParentLinks?: boolean;
+  /**
    * Custom JS/TS parser. Called with the placeholder JS string
    * (templates replaced with backtick expressions of equal length).
    * Must return at least `{ ast }`.
@@ -55,6 +60,5 @@ export class DocumentLines {
 export function toTree(source: string, options?: ParseOptions): FileNode | TemplateResult;
 export function parse(source: string, options?: ParseOptions): FileNode | TemplateResult;
 export function print(node: ASTNode): string;
-export function removeParentReferences(ast: ASTNode): ASTNode;
 
 export const glimmerVisitorKeys: Record<string, string[]>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parse, removeParentReferences } from "../src/index.js";
+import { parse } from "../src/index.js";
 import { findNode, findAllNodes } from "./helpers.js";
 
 describe("parse", () => {
@@ -48,10 +48,9 @@ describe("parse", () => {
     checkStartEnd(ast);
   });
 
-  it("removeParentReferences removes circular parent references", () => {
+  it("includeParentLinks: false produces AST without parent references", () => {
     const source = `const x = <template><h1>Hello</h1></template>;`;
-    const ast = parse(source);
-    removeParentReferences(ast);
+    const ast = parse(source, { includeParentLinks: false });
 
     function checkNoParent(node, visited = new Set()) {
       if (!node || typeof node !== "object" || visited.has(node)) return;
@@ -72,6 +71,13 @@ describe("parse", () => {
       }
     }
     checkNoParent(ast);
+  });
+
+  it("includeParentLinks defaults to true", () => {
+    const source = `const x = <template><h1>Hello</h1></template>;`;
+    const ast = parse(source);
+    const h1 = findNode(ast, "GlimmerElementNode");
+    expect(h1.parent).toBeDefined();
   });
 
   it("parses Glimmer template nodes into the AST", () => {
