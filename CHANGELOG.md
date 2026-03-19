@@ -1,5 +1,16 @@
 # Changelog
 
+## Release (2026-03-19)
+
+* ember-estree 0.4.0 (minor)
+
+#### :rocket: Enhancement
+* `ember-estree`
+  * [#21](https://github.com/NullVoxPopuli/ember-estree/pull/21) Extract more from eslint-parser ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- NullVoxPopuli's reduced-access account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
 ## Release (2026-03-16)
 
 * ember-estree 0.3.0 (minor)
