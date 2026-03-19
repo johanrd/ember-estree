@@ -32,9 +32,7 @@ const PLACEHOLDER_TYPES = new Set([
  * @param {object} [options]
  * @param {string}  [options.filePath] - File path for language detection
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
- * @param {[number, number]} [options.templateRange] - Position offset for templateOnly mode
- * @param {import("./transforms.js").DocumentLines} [options.codeLines] - DocumentLines for position mapping
- * @param {function} [options.parser] - Custom JS/TS parser: (source, parseResults, placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
+ * @param {function} [options.parser] - Custom JS/TS parser: (placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
  * @param {object}  [options.visitors] - Callbacks invoked for Glimmer nodes during traversal
  * @return {object}
  */
@@ -52,7 +50,7 @@ export function toTree(source, options = {}) {
   // Parse the placeholder JS — use custom parser or default oxc
   let result;
   if (useCustomParser) {
-    result = options.parser(source, parseResults, js);
+    result = options.parser(js);
     if (!result.ast) {
       result = { ast: result };
     }

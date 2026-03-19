@@ -31,15 +31,11 @@ export interface ParseOptions {
   filePath?: string;
   templateOnly?: boolean;
   /**
-   * Custom JS/TS parser. Called with the original source, content-tag
-   * parseResults, and the placeholder JS string. Must return at least
-   * `{ ast }`. May also return `scopeManager`, `visitorKeys`, `services`.
+   * Custom JS/TS parser. Called with the placeholder JS string
+   * (templates replaced with backtick expressions of equal length).
+   * Must return at least `{ ast }`.
    */
-  parser?: (
-    source: string,
-    parseResults: unknown[],
-    placeholderJS: string,
-  ) => { ast: ASTNode; [key: string]: unknown };
+  parser?: (placeholderJS: string) => { ast: ASTNode; [key: string]: unknown };
   /**
    * Callbacks invoked for Glimmer nodes during the AST splice traversal.
    * Runs in DFS order, so parent nodes are visited before children.
