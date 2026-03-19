@@ -32,6 +32,9 @@
   "scripts": {
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "bench": "node --expose-gc tests/parser.bench.mjs",
+    "bench:compare": "node scripts/bench-compare.mjs",
+    "bench:summary": "./scripts/local-bench-summary.sh",
     "lint": "oxlint && pnpm format:check && publint",
     "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
@@ -45,6 +48,7 @@
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
+    "mitata": "^1.0.34",
     "oxfmt": "^0.40.0",
     "oxlint": "^1.55.0",
     "publint": "^0.3.18",
