@@ -21,7 +21,8 @@
     <p class="loading">Loading…</p>
   {{else if @error}}
     <div class="error-banner">
-      <strong>Error:</strong> {{@error.message}}
+      <strong>Error:</strong>
+      {{@error.message}}
       <button type="button" {{on "click" @onRetry}}>Retry</button>
     </div>
   {{else}}
@@ -29,7 +30,8 @@
       <article class="post">
         <h2>{{post.title}}</h2>
         <p class="meta">
-          By {{post.author.name}}
+          By
+          {{post.author.name}}
           {{#if post.publishedAt}}· {{post.publishedAt}}{{/if}}
         </p>
         <p>{{post.excerpt}}</p>

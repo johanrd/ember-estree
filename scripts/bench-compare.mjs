@@ -15,25 +15,25 @@
  *   --base <branch>   Branch to compare against (default: main)
  */
 
-import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { execSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // CLI args
 // ---------------------------------------------------------------------------
 
 const args = process.argv.slice(2);
-const baseIdx = args.indexOf('--base');
-const BASE_BRANCH = baseIdx !== -1 ? args[baseIdx + 1] : 'main';
+const baseIdx = args.indexOf("--base");
+const BASE_BRANCH = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function run(cmd, opts = {}) {
-  return execSync(cmd, { stdio: 'inherit', ...opts });
+  return execSync(cmd, { stdio: "inherit", ...opts });
 }
 
 /**
@@ -42,9 +42,9 @@ function run(cmd, opts = {}) {
  */
 function resolveRef(branch) {
   for (const candidate of [`origin/${branch}`, branch]) {
-    const result = spawnSync('git', ['rev-parse', '--verify', candidate], {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
+    const result = spawnSync("git", ["rev-parse", "--verify", candidate], {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
     });
     if (result.status === 0) return result.stdout.trim();
   }
@@ -73,9 +73,9 @@ function cleanup() {
     }
   }
 }
-process.on('exit', cleanup);
-process.on('SIGINT', () => process.exit(130));
-process.on('SIGTERM', () => process.exit(143));
+process.on("exit", cleanup);
+process.on("SIGINT", () => process.exit(130));
+process.on("SIGTERM", () => process.exit(143));
 
 try {
   // ── 1. Export base branch source to temp dir ─────────────────────────────
@@ -83,54 +83,54 @@ try {
 
   // Copy package manifests and source (use resolved SHA for reliability)
   run(
-    `git archive ${BASE_REF} -- package.json pnpm-lock.yaml pnpm-workspace.yaml src/ | tar -x -C "${CONTROL_DIR}"`
+    `git archive ${BASE_REF} -- package.json pnpm-lock.yaml pnpm-workspace.yaml src/ | tar -x -C "${CONTROL_DIR}"`,
   );
 
   // ── 2. Install dependencies in control dir ───────────────────────────────
   console.error(`\n📦  Installing dependencies for control (${BASE_BRANCH})…\n`);
-  run('pnpm install --frozen-lockfile', {
+  run("pnpm install --frozen-lockfile", {
     cwd: CONTROL_DIR,
-    stdio: ['inherit', 'pipe', 'inherit'],
+    stdio: ["inherit", "pipe", "inherit"],
   });
 
   // ── 3. Run mitata bench with --control-dir ───────────────────────────────
   console.error(`\n🏎️  Running benchmarks (experiment vs control)…\n`);
 
-  const benchScript = join(ROOT, 'tests/parser.bench.mjs');
+  const benchScript = join(ROOT, "tests/parser.bench.mjs");
   const benchArgs = [
-    '--expose-gc',
-    '--max-old-space-size=4096',
+    "--expose-gc",
+    "--max-old-space-size=4096",
     benchScript,
-    '--control-dir',
+    "--control-dir",
     CONTROL_DIR,
   ];
 
   // CPU pinning on Linux to reduce cross-core migration variance
-  const IS_LINUX = process.platform === 'linux';
-  const HAS_TASKSET = IS_LINUX && spawnSync('which', ['taskset'], { stdio: 'pipe' }).status === 0;
+  const IS_LINUX = process.platform === "linux";
+  const HAS_TASKSET = IS_LINUX && spawnSync("which", ["taskset"], { stdio: "pipe" }).status === 0;
 
-  let cmd = 'node';
+  let cmd = "node";
   let fullArgs = benchArgs;
 
   if (HAS_TASKSET) {
-    cmd = 'taskset';
-    fullArgs = ['-c', '0', 'node', ...benchArgs];
-    console.error('📌  CPU pinning enabled (taskset -c 0)\n');
+    cmd = "taskset";
+    fullArgs = ["-c", "0", "node", ...benchArgs];
+    console.error("📌  CPU pinning enabled (taskset -c 0)\n");
   }
 
   const result = spawnSync(cmd, fullArgs, {
-    stdio: 'inherit',
+    stdio: "inherit",
     cwd: ROOT,
     env: { ...process.env },
   });
 
   if (result.status !== 0) {
-    console.error('\n❌  Benchmark run failed.');
+    console.error("\n❌  Benchmark run failed.");
     process.exit(1);
   }
 
-  console.error('\n✅  Benchmark comparison complete.\n');
+  console.error("\n✅  Benchmark comparison complete.\n");
 } catch (e) {
-  console.error('❌  Error:', e.message);
+  console.error("❌  Error:", e.message);
   process.exit(1);
 }

@@ -3,10 +3,7 @@
     <a href="/" class="logo">{{@appName}}</a>
     <nav class="primary-nav">
       {{#each @navItems as |item|}}
-        <a
-          href={{item.url}}
-          class="nav-link {{if item.active 'nav-link--active'}}"
-        >
+        <a href={{item.url}} class="nav-link {{if item.active 'nav-link--active'}}">
           {{item.label}}
           {{#if item.badge}}
             <span class="badge">{{item.badge}}</span>
@@ -18,11 +15,7 @@
       {{#if @currentUser}}
         <div class="user-menu">
           <button type="button" {{on "click" @onOpenUserMenu}}>
-            <img
-              src={{@currentUser.avatarUrl}}
-              alt={{@currentUser.name}}
-              class="avatar"
-            />
+            <img src={{@currentUser.avatarUrl}} alt={{@currentUser.name}} class="avatar" />
             {{@currentUser.name}}
           </button>
           {{#if @isUserMenuOpen}}
@@ -62,10 +55,7 @@
         <h3>Tags</h3>
         <div class="tag-cloud">
           {{#each @popularTags as |tag|}}
-            <a
-              href={{tag.url}}
-              class="tag tag--{{tag.size}}"
-            >
+            <a href={{tag.url}} class="tag tag--{{tag.size}}">
               {{tag.name}}
             </a>
           {{/each}}
@@ -121,15 +111,9 @@
         </div>
         <div class="sort-control">
           <label for="sort-select">Sort by</label>
-          <select
-            id="sort-select"
-            {{on "change" @onSortChange}}
-          >
+          <select id="sort-select" {{on "change" @onSortChange}}>
             {{#each @sortOptions as |opt|}}
-              <option
-                value={{opt.value}}
-                selected={{eq @currentSort opt.value}}
-              >
+              <option value={{opt.value}} selected={{eq @currentSort opt.value}}>
                 {{opt.label}}
               </option>
             {{/each}}
@@ -143,7 +127,8 @@
         </div>
       {{else if @error}}
         <div class="error-banner" role="alert">
-          <strong>Something went wrong:</strong> {{@error.message}}
+          <strong>Something went wrong:</strong>
+          {{@error.message}}
           <button type="button" {{on "click" @onRetry}}>Try again</button>
         </div>
       {{else}}
@@ -165,9 +150,11 @@
                   />
                   {{item.author.name}}
                   {{#if item.publishedAt}}
-                    · <time>{{item.publishedAt}}</time>
+                    ·
+                    <time>{{item.publishedAt}}</time>
                   {{else}}
-                    · <em>Draft</em>
+                    ·
+                    <em>Draft</em>
                   {{/if}}
                 </p>
                 <p class="item-card__excerpt">{{item.excerpt}}</p>
@@ -179,10 +166,12 @@
               </div>
               <div class="item-card__footer">
                 <span class="stat">
-                  {{item.likeCount}} likes
+                  {{item.likeCount}}
+                  likes
                 </span>
                 <span class="stat">
-                  {{item.commentCount}} comments
+                  {{item.commentCount}}
+                  comments
                 </span>
                 {{#if @currentUser}}
                   <button
@@ -198,7 +187,8 @@
             </div>
           {{else}}
             <p class="empty-state">
-              No results found for <strong>{{@searchQuery}}</strong>.
+              No results found for
+              <strong>{{@searchQuery}}</strong>.
               <button type="button" {{on "click" @onClearSearch}}>Clear search</button>
             </p>
           {{/each}}
@@ -215,7 +205,10 @@
               ← Previous
             </button>
             <span class="pagination__info">
-              Page {{@pagination.currentPage}} of {{@pagination.totalPages}}
+              Page
+              {{@pagination.currentPage}}
+              of
+              {{@pagination.totalPages}}
             </span>
             <button
               type="button"

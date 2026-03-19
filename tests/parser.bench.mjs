@@ -11,24 +11,24 @@
  *   node --expose-gc tests/parser.bench.mjs [--control-dir <path>]
  */
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
-import { run, bench, boxplot, summary } from 'mitata';
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { run, bench, boxplot, summary } from "mitata";
 
 // ---------------------------------------------------------------------------
 // CLI args
 // ---------------------------------------------------------------------------
 
 const args = process.argv.slice(2);
-const ctrlIdx = args.indexOf('--control-dir');
+const ctrlIdx = args.indexOf("--control-dir");
 const CONTROL_DIR = ctrlIdx !== -1 ? resolve(args[ctrlIdx + 1]) : null;
 
 // ---------------------------------------------------------------------------
 // Load experiment (current branch) parser
 // ---------------------------------------------------------------------------
 
-const experiment = await import('../src/index.js');
+const experiment = await import("../src/index.js");
 
 // ---------------------------------------------------------------------------
 // (Optionally) load control (base branch) parser from tmp dir
@@ -37,7 +37,7 @@ const experiment = await import('../src/index.js');
 let control = null;
 
 if (CONTROL_DIR) {
-  control = await import(resolve(CONTROL_DIR, 'src/index.js'));
+  control = await import(resolve(CONTROL_DIR, "src/index.js"));
 }
 
 // ---------------------------------------------------------------------------
@@ -45,13 +45,13 @@ if (CONTROL_DIR) {
 // ---------------------------------------------------------------------------
 
 function fixture(name) {
-  return readFileSync(fileURLToPath(new URL(`./bench/${name}`, import.meta.url)), 'utf8');
+  return readFileSync(fileURLToPath(new URL(`./bench/${name}`, import.meta.url)), "utf8");
 }
 
 const FIXTURES = {
-  gts: { small: fixture('small.gts'), medium: fixture('medium.gts'), large: fixture('large.gts') },
-  gjs: { small: fixture('small.gjs'), medium: fixture('medium.gjs'), large: fixture('large.gjs') },
-  hbs: { small: fixture('small.hbs'), medium: fixture('medium.hbs'), large: fixture('large.hbs') },
+  gts: { small: fixture("small.gts"), medium: fixture("medium.gts"), large: fixture("large.gts") },
+  gjs: { small: fixture("small.gjs"), medium: fixture("medium.gjs"), large: fixture("large.gjs") },
+  hbs: { small: fixture("small.hbs"), medium: fixture("medium.hbs"), large: fixture("large.hbs") },
 };
 
 // ---------------------------------------------------------------------------
@@ -60,20 +60,20 @@ const FIXTURES = {
 
 const PARSERS = [
   {
-    type: 'gts',
-    ext: '.gts',
+    type: "gts",
+    ext: ".gts",
     experimentParse: (code, opts) => experiment.parse(code, opts),
     controlParse: control ? (code, opts) => control.parse(code, opts) : null,
   },
   {
-    type: 'gjs',
-    ext: '.gjs',
+    type: "gjs",
+    ext: ".gjs",
     experimentParse: (code, opts) => experiment.parse(code, opts),
     controlParse: control ? (code, opts) => control.parse(code, opts) : null,
   },
   {
-    type: 'hbs',
-    ext: '.hbs',
+    type: "hbs",
+    ext: ".hbs",
     experimentParse: (code, opts) => experiment.parse(code, { ...opts, templateOnly: true }),
     controlParse: control
       ? (code, opts) => control.parse(code, { ...opts, templateOnly: true })
@@ -81,7 +81,7 @@ const PARSERS = [
   },
 ];
 
-const SIZES = ['small', 'medium', 'large'];
+const SIZES = ["small", "medium", "large"];
 
 // ---------------------------------------------------------------------------
 // JIT warm-up — parse every fixture with both parsers so V8 compiles and
@@ -137,7 +137,7 @@ const result = await run({ colors: false, throw: true });
 // Write JSON output if requested
 const jsonPath = process.env.BENCH_JSON_OUTPUT;
 if (jsonPath) {
-  const { writeFileSync } = await import('node:fs');
+  const { writeFileSync } = await import("node:fs");
 
   const benchmarks = result.benchmarks.map((trial) => ({
     alias: trial.alias,

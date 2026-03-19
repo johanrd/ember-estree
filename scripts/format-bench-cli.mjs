@@ -6,19 +6,19 @@
  *   BENCH_JSON_OUTPUT - Path to the JSON bench results
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
 const jsonPath = process.env.BENCH_JSON_OUTPUT;
 
 if (!jsonPath) {
-  console.error('BENCH_JSON_OUTPUT not set');
+  console.error("BENCH_JSON_OUTPUT not set");
   process.exit(1);
 }
 
 let json;
 
 try {
-  json = JSON.parse(readFileSync(jsonPath, 'utf8'));
+  json = JSON.parse(readFileSync(jsonPath, "utf8"));
 } catch (e) {
   console.error(`Could not read ${jsonPath}: ${e.message}`);
   process.exit(1);
@@ -34,11 +34,11 @@ function formatTime(ns) {
 function deltaEmoji(pct) {
   const abs = Math.abs(pct);
 
-  if (abs < 1) return '⚪';
-  if (pct <= -5) return '🟢';
-  if (pct >= 5) return '🔴';
+  if (abs < 1) return "⚪";
+  if (pct <= -5) return "🟢";
+  if (pct >= 5) return "🔴";
 
-  return '🟡';
+  return "🟡";
 }
 
 // Group control/experiment pairs
@@ -61,7 +61,7 @@ for (const trial of json.benchmarks || []) {
 }
 
 if (pairs.size === 0) {
-  console.log('No comparison data found.');
+  console.log("No comparison data found.");
   process.exit(0);
 }
 
@@ -80,24 +80,24 @@ for (const [name, { control, experiment }] of pairs) {
 }
 
 if (rows.length === 0) {
-  console.log('No comparison data found.');
+  console.log("No comparison data found.");
   process.exit(0);
 }
 
 // Calculate column widths
-const nameW = Math.max('Benchmark'.length, ...rows.map((r) => r.name.length));
-const ctrlW = Math.max('Control (p50)'.length, ...rows.map((r) => formatTime(r.control).length));
+const nameW = Math.max("Benchmark".length, ...rows.map((r) => r.name.length));
+const ctrlW = Math.max("Control (p50)".length, ...rows.map((r) => formatTime(r.control).length));
 const expW = Math.max(
-  'Experiment (p50)'.length,
-  ...rows.map((r) => formatTime(r.experiment).length)
+  "Experiment (p50)".length,
+  ...rows.map((r) => formatTime(r.experiment).length),
 );
 const deltaW = Math.max(
-  'Δ'.length,
+  "Δ".length,
   ...rows.map((r) => {
-    const sign = r.delta > 0 ? '+' : '';
+    const sign = r.delta > 0 ? "+" : "";
 
     return `${sign}${r.delta.toFixed(1)}%`.length;
-  })
+  }),
 );
 
 // Print table
@@ -105,22 +105,22 @@ const pad = (s, w, right) => (right ? s.padStart(w) : s.padEnd(w));
 
 console.log();
 console.log(
-  `   ${pad('Benchmark', nameW)}   ${pad('Control (p50)', ctrlW, true)}   ${pad('Experiment (p50)', expW, true)}   ${pad('Δ', deltaW, true)}`
+  `   ${pad("Benchmark", nameW)}   ${pad("Control (p50)", ctrlW, true)}   ${pad("Experiment (p50)", expW, true)}   ${pad("Δ", deltaW, true)}`,
 );
 console.log(
-  `   ${'─'.repeat(nameW)}   ${'─'.repeat(ctrlW)}   ${'─'.repeat(expW)}   ${'─'.repeat(deltaW)}`
+  `   ${"─".repeat(nameW)}   ${"─".repeat(ctrlW)}   ${"─".repeat(expW)}   ${"─".repeat(deltaW)}`,
 );
 
 for (const row of rows) {
   const emoji = deltaEmoji(row.delta);
-  const sign = row.delta > 0 ? '+' : '';
+  const sign = row.delta > 0 ? "+" : "";
   const deltaStr = `${sign}${row.delta.toFixed(1)}%`;
 
   console.log(
-    `${emoji} ${pad(row.name, nameW)}   ${pad(formatTime(row.control), ctrlW, true)}   ${pad(formatTime(row.experiment), expW, true)}   ${pad(deltaStr, deltaW, true)}`
+    `${emoji} ${pad(row.name, nameW)}   ${pad(formatTime(row.control), ctrlW, true)}   ${pad(formatTime(row.experiment), expW, true)}   ${pad(deltaStr, deltaW, true)}`,
   );
 }
 
 console.log();
-console.log('🟢 faster · 🔴 slower · 🟡 within 5% · ⚪ within 1%');
+console.log("🟢 faster · 🔴 slower · 🟡 within 5% · ⚪ within 1%");
 console.log();

@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   bench-compare:
-    name: 'Benchmark Comparison'
+    name: "Benchmark Comparison"
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
