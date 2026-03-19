@@ -58,6 +58,9 @@ export function toTree(source, options = {}) {
     }
   } else {
     let filename = options.filePath || "input.ts";
+    if (filename.includes(".gts")) {
+      filename = filename.replace(/\.gts$/, ".ts");
+    }
     let oxcResult = parseSync(filename, js);
     result = {
       ast: {
