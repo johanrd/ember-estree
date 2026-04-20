@@ -1,5 +1,16 @@
 # Changelog
 
+## Release (2026-04-20)
+
+* ember-estree 0.4.3 (patch)
+
+#### :bug: Bug Fix
+* `ember-estree`
+  * [#31](https://github.com/NullVoxPopuli/ember-estree/pull/31) Keep Glimmer comment nodes in template body with semantic types ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
 ## Release (2026-03-19)
 
 * ember-estree 0.4.2 (patch)
