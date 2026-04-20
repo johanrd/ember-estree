@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { walk } from "zimmerframe";
 import { toTree, print } from "../src/index.js";
-import { findAllNodes } from "./helpers.js";
 
 describe("Glimmer comment nodes — parse + mutate + print", () => {
   it("HTML comments (<!-- -->) appear in GlimmerTemplate.body as GlimmerCommentStatement", () => {
     const ast = toTree(`const X = <template><!-- a comment --></template>;`, {
       includeParentLinks: false,
     });
-    const comments = findAllNodes(ast, "GlimmerCommentStatement");
+
+    const comments = [];
+    walk(ast, null, { GlimmerCommentStatement(node) { comments.push(node); } }, ast.visitorKeys);
+
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
   });
@@ -17,7 +19,10 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     const ast = toTree(`const X = <template>{{! a comment }}</template>;`, {
       includeParentLinks: false,
     });
-    const comments = findAllNodes(ast, "GlimmerMustacheCommentStatement");
+
+    const comments = [];
+    walk(ast, null, { GlimmerMustacheCommentStatement(node) { comments.push(node); } }, ast.visitorKeys);
+
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
   });
@@ -26,7 +31,10 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     const ast = toTree(`const X = <template>{{!-- a comment --}}</template>;`, {
       includeParentLinks: false,
     });
-    const comments = findAllNodes(ast, "GlimmerMustacheCommentStatement");
+
+    const comments = [];
+    walk(ast, null, { GlimmerMustacheCommentStatement(node) { comments.push(node); } }, ast.visitorKeys);
+
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
   });
@@ -36,13 +44,12 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       includeParentLinks: false,
     });
 
+    let tpl;
     walk(ast, null, {
-      GlimmerCommentStatement(node) {
-        node.value = " new content ";
-      },
+      GlimmerTemplate(node, { next }) { tpl = node; next(); },
+      GlimmerCommentStatement(node) { node.value = " new content "; },
     }, ast.visitorKeys);
 
-    const tpl = findAllNodes(ast, "GlimmerTemplate")[0];
     const output = print(tpl);
     expect(output).toContain("<!-- new content -->");
     expect(output).not.toContain("<!-- old content -->");
@@ -53,13 +60,12 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       includeParentLinks: false,
     });
 
+    let tpl;
     walk(ast, null, {
-      GlimmerMustacheCommentStatement(node) {
-        node.value = "new content";
-      },
+      GlimmerTemplate(node, { next }) { tpl = node; next(); },
+      GlimmerMustacheCommentStatement(node) { node.value = "new content"; },
     }, ast.visitorKeys);
 
-    const tpl = findAllNodes(ast, "GlimmerTemplate")[0];
     const output = print(tpl);
     expect(output).toContain("new content");
     expect(output).not.toContain("old content");
@@ -70,13 +76,12 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       includeParentLinks: false,
     });
 
+    let tpl;
     walk(ast, null, {
-      GlimmerMustacheCommentStatement(node) {
-        node.value = "new content";
-      },
+      GlimmerTemplate(node, { next }) { tpl = node; next(); },
+      GlimmerMustacheCommentStatement(node) { node.value = "new content"; },
     }, ast.visitorKeys);
 
-    const tpl = findAllNodes(ast, "GlimmerTemplate")[0];
     const output = print(tpl);
     expect(output).toContain("new content");
     expect(output).not.toContain("old content");
@@ -88,16 +93,13 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       { includeParentLinks: false },
     );
 
+    let tpl;
     walk(ast, null, {
-      GlimmerCommentStatement(node) {
-        node.value = " updated html ";
-      },
-      GlimmerMustacheCommentStatement(node) {
-        node.value = " updated mustache ";
-      },
+      GlimmerTemplate(node, { next }) { tpl = node; next(); },
+      GlimmerCommentStatement(node) { node.value = " updated html "; },
+      GlimmerMustacheCommentStatement(node) { node.value = " updated mustache "; },
     }, ast.visitorKeys);
 
-    const tpl = findAllNodes(ast, "GlimmerTemplate")[0];
     const output = print(tpl);
     expect(output).toContain("<!-- updated html -->");
     expect(output).not.toContain("<!-- html -->");
@@ -109,7 +111,10 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
   it("comment nodes carry correct start/end positions matching source", () => {
     const source = `const X = <template><!-- my comment --></template>;`;
     const ast = toTree(source, { includeParentLinks: false });
-    const comment = findAllNodes(ast, "GlimmerCommentStatement")[0];
+
+    let comment;
+    walk(ast, null, { GlimmerCommentStatement(node) { comment = node; } }, ast.visitorKeys);
+
     expect(source.slice(comment.start, comment.end)).toBe("<!-- my comment -->");
   });
 });
