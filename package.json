@@ -30,11 +30,11 @@
     }
   },
   "scripts": {
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
     "bench": "node --expose-gc tests/parser.bench.mjs",
     "bench:compare": "node scripts/bench-compare.mjs",
     "bench:summary": "./scripts/local-bench-summary.sh",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "lint": "oxlint && pnpm format:check && publint",
     "lint:fix": "oxlint --fix && oxfmt",
     "test": "vitest run"
@@ -52,7 +52,7 @@
     "oxfmt": "^0.40.0",
     "oxlint": "^1.55.0",
     "publint": "^0.3.18",
-    "release-plan": "^0.17.4",
+    "release-plan": "^0.18.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
