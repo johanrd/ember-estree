@@ -9,7 +9,11 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     const comments = [];
-    walk(ast, null, { GlimmerCommentStatement(node) { comments.push(node); } });
+    walk(ast, null, {
+      GlimmerCommentStatement(node) {
+        comments.push(node);
+      },
+    });
 
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
@@ -21,7 +25,11 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     const comments = [];
-    walk(ast, null, { GlimmerMustacheCommentStatement(node) { comments.push(node); } });
+    walk(ast, null, {
+      GlimmerMustacheCommentStatement(node) {
+        comments.push(node);
+      },
+    });
 
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
@@ -33,7 +41,11 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     const comments = [];
-    walk(ast, null, { GlimmerMustacheCommentStatement(node) { comments.push(node); } });
+    walk(ast, null, {
+      GlimmerMustacheCommentStatement(node) {
+        comments.push(node);
+      },
+    });
 
     expect(comments.length).toBe(1);
     expect(comments[0].value).toBe(" a comment ");
@@ -45,7 +57,12 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     let comment;
-    walk(ast, null, { GlimmerCommentStatement(node) { node.value = " new content "; comment = node; } });
+    walk(ast, null, {
+      GlimmerCommentStatement(node) {
+        node.value = " new content ";
+        comment = node;
+      },
+    });
 
     expect(print(comment)).toBe("<!-- new content -->");
   });
@@ -56,7 +73,12 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     let comment;
-    walk(ast, null, { GlimmerMustacheCommentStatement(node) { node.value = "new content"; comment = node; } });
+    walk(ast, null, {
+      GlimmerMustacheCommentStatement(node) {
+        node.value = "new content";
+        comment = node;
+      },
+    });
 
     expect(print(comment)).toBe("{{! new content }}");
   });
@@ -67,28 +89,38 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     });
 
     let comment;
-    walk(ast, null, { GlimmerMustacheCommentStatement(node) { node.value = "new content"; comment = node; } });
+    walk(ast, null, {
+      GlimmerMustacheCommentStatement(node) {
+        node.value = "new content";
+        comment = node;
+      },
+    });
 
-    expect(print(comment)).toBe("{{! new content }}");
+    expect(print(comment)).toBe("{{!-- new content --}}");
   });
 
   it("mutates all three comment types in one walk", () => {
-    const ast = toTree(
-      `const X = <template><!-- html -->{{! short }}{{!-- long --}}</template>;`,
-      { includeParentLinks: false },
-    );
+    const ast = toTree(`const X = <template><!-- html -->{{! short }}{{!-- long --}}</template>;`, {
+      includeParentLinks: false,
+    });
 
     const htmlComments = [];
     const mustacheComments = [];
     walk(ast, null, {
-      GlimmerCommentStatement(node) { node.value = " updated html "; htmlComments.push(node); },
-      GlimmerMustacheCommentStatement(node) { node.value = "updated mustache"; mustacheComments.push(node); },
+      GlimmerCommentStatement(node) {
+        node.value = " updated html ";
+        htmlComments.push(node);
+      },
+      GlimmerMustacheCommentStatement(node) {
+        node.value = "updated mustache";
+        mustacheComments.push(node);
+      },
     });
 
     expect(print(htmlComments[0])).toBe("<!-- updated html -->");
     expect(mustacheComments.length).toBe(2);
     expect(print(mustacheComments[0])).toBe("{{! updated mustache }}");
-    expect(print(mustacheComments[1])).toBe("{{! updated mustache }}");
+    expect(print(mustacheComments[1])).toBe("{{!-- updated mustache --}}");
   });
 
   it("comment nodes carry correct start/end positions matching source", () => {
@@ -96,7 +128,11 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
     const ast = toTree(source, { includeParentLinks: false });
 
     let comment;
-    walk(ast, null, { GlimmerCommentStatement(node) { comment = node; } });
+    walk(ast, null, {
+      GlimmerCommentStatement(node) {
+        comment = node;
+      },
+    });
 
     expect(source.slice(comment.start, comment.end)).toBe("<!-- my comment -->");
   });

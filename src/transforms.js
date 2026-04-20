@@ -248,6 +248,10 @@ export function processTemplate(
     n.end = n.range[1];
     n.loc = toFileLoc(n.range);
 
+    if (n.type === "MustacheCommentStatement") {
+      n.longForm = templateContent.slice(n.start - offset, n.start - offset + 4) === "{{!-";
+    }
+
     // Create parts for ElementNode
     if (n.type === "ElementNode") {
       n.name = n.tag;

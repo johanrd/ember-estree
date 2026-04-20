@@ -84,7 +84,6 @@ export function toTree(source, options = {}) {
   }
 
   const codeLines = new DocumentLines(source);
-  const allComments = [];
   const templateInfos = [];
 
   // Build a map of template ranges for lookup
@@ -99,12 +98,7 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast, comments } = processTemplate(
-      templateContent,
-      codeLines,
-      contentRange,
-      templateOpts,
-    );
+    const { ast } = processTemplate(templateContent, codeLines, contentRange, templateOpts);
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;
@@ -276,12 +270,6 @@ export function toTree(source, options = {}) {
       }
       tokens.splice(firstIdx, lastIdx - firstIdx, ...ti.ast.tokens);
     }
-  }
-
-  // Merge comments
-  if (allComments.length) {
-    if (!astRoot.comments) astRoot.comments = [];
-    astRoot.comments.push(...allComments);
   }
 
   if (useCustomParser) {
