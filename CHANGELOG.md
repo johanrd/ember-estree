@@ -1,5 +1,24 @@
 # Changelog
 
+## Release (2026-04-20)
+
+* ember-estree 0.4.3 (patch)
+
+#### :bug: Bug Fix
+* `ember-estree`
+  * [#31](https://github.com/NullVoxPopuli/ember-estree/pull/31) Keep Glimmer comment nodes in template body with semantic types ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### :house: Internal
+* `ember-estree`
+  * [#34](https://github.com/NullVoxPopuli/ember-estree/pull/34) Update release-plan ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+  * [#33](https://github.com/NullVoxPopuli/ember-estree/pull/33) Revert "Prepare Release v0.4.3" ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+  * [#32](https://github.com/NullVoxPopuli/ember-estree/pull/32) Prepare Release v0.4.3 ([@github-actions[bot]](https://github.com/apps/github-actions))
+
+#### Committers: 3
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+- GitHub Actions [Bot] ([@github-actions](https://github.com/apps/github-actions))
+- [@NullVoxPopuli](https://github.com/NullVoxPopuli)
+
 ## Release (2026-03-19)
 
 * ember-estree 0.4.2 (patch)
