@@ -860,7 +860,7 @@ export function print(node) {
       return `<!--${node.value ?? ""}-->`;
 
     case "GlimmerMustacheCommentStatement":
-      return `{{! ${node.value ?? ""} }}`;
+      return node.longForm ? `{{!-- ${node.value ?? ""} --}}` : `{{! ${node.value ?? ""} }}`;
 
     case "GlimmerElementModifierStatement": {
       const path = print(node.path);
