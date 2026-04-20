@@ -137,7 +137,6 @@ export function toTree(source, options = {}) {
       makeToken(closeTag, [closeStart, fullRange[1]]),
     ];
 
-    allComments.push(...comments);
     templateInfos.push({ utf16Range: fullRange, ast });
     return ast;
   }
