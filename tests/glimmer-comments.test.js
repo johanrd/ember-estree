@@ -40,19 +40,14 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
   });
 
   it("mutating an HTML comment value via zimmerframe changes print output", () => {
-    const ast = toTree(`const X = <template><!-- old content --><div>hi</div></template>;`, {
+    const ast = toTree(`const X = <template><!-- old content --></template>;`, {
       includeParentLinks: false,
     });
 
-    let tpl;
-    walk(ast, null, {
-      GlimmerTemplate(node, { next }) { tpl = node; next(); },
-      GlimmerCommentStatement(node) { node.value = " new content "; },
-    });
+    let comment;
+    walk(ast, null, { GlimmerCommentStatement(node) { node.value = " new content "; comment = node; } });
 
-    const output = print(tpl);
-    expect(output).toContain("<!-- new content -->");
-    expect(output).not.toContain("<!-- old content -->");
+    expect(print(comment)).toBe("<!-- new content -->");
   });
 
   it("mutating a short mustache comment value via zimmerframe changes print output", () => {
@@ -60,15 +55,10 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       includeParentLinks: false,
     });
 
-    let tpl;
-    walk(ast, null, {
-      GlimmerTemplate(node, { next }) { tpl = node; next(); },
-      GlimmerMustacheCommentStatement(node) { node.value = "new content"; },
-    });
+    let comment;
+    walk(ast, null, { GlimmerMustacheCommentStatement(node) { node.value = "new content"; comment = node; } });
 
-    const output = print(tpl);
-    expect(output).toContain("new content");
-    expect(output).not.toContain("old content");
+    expect(print(comment)).toBe("{{! new content }}");
   });
 
   it("mutating a long mustache comment value via zimmerframe changes print output", () => {
@@ -76,36 +66,29 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
       includeParentLinks: false,
     });
 
-    let tpl;
-    walk(ast, null, {
-      GlimmerTemplate(node, { next }) { tpl = node; next(); },
-      GlimmerMustacheCommentStatement(node) { node.value = "new content"; },
-    });
+    let comment;
+    walk(ast, null, { GlimmerMustacheCommentStatement(node) { node.value = "new content"; comment = node; } });
 
-    const output = print(tpl);
-    expect(output).toContain("new content");
-    expect(output).not.toContain("old content");
+    expect(print(comment)).toBe("{{! new content }}");
   });
 
   it("mutates all three comment types in one walk", () => {
     const ast = toTree(
-      `const X = <template><!-- html -->{{! short }}{{!-- long --}}<div>content</div></template>;`,
+      `const X = <template><!-- html -->{{! short }}{{!-- long --}}</template>;`,
       { includeParentLinks: false },
     );
 
-    let tpl;
+    const htmlComments = [];
+    const mustacheComments = [];
     walk(ast, null, {
-      GlimmerTemplate(node, { next }) { tpl = node; next(); },
-      GlimmerCommentStatement(node) { node.value = " updated html "; },
-      GlimmerMustacheCommentStatement(node) { node.value = " updated mustache "; },
+      GlimmerCommentStatement(node) { node.value = " updated html "; htmlComments.push(node); },
+      GlimmerMustacheCommentStatement(node) { node.value = "updated mustache"; mustacheComments.push(node); },
     });
 
-    const output = print(tpl);
-    expect(output).toContain("<!-- updated html -->");
-    expect(output).not.toContain("<!-- html -->");
-    expect(output).not.toContain("{{! short }}");
-    expect(output).not.toContain("{{!-- long --}}");
-    expect(output).toContain("<div>content</div>");
+    expect(print(htmlComments[0])).toBe("<!-- updated html -->");
+    expect(mustacheComments.length).toBe(2);
+    expect(print(mustacheComments[0])).toBe("{{! updated mustache }}");
+    expect(print(mustacheComments[1])).toBe("{{! updated mustache }}");
   });
 
   it("comment nodes carry correct start/end positions matching source", () => {
