@@ -11,24 +11,24 @@
     "traversal",
     "walker"
   ],
+  "license": "MIT",
+  "author": "NullVoxPopuli",
   "repository": {
     "type": "git",
     "url": "git@github.com:NullVoxPopuli/ember-estree.git"
   },
-  "license": "MIT",
-  "author": "NullVoxPopuli",
+  "files": [
+    "src"
+  ],
   "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "exports": {
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
     }
   },
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
-  "files": [
-    "src"
-  ],
   "scripts": {
     "bench": "node --expose-gc tests/parser.bench.mjs",
     "bench:compare": "node scripts/bench-compare.mjs",
