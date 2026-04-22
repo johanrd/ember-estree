@@ -153,44 +153,27 @@ export function toTree(source, options = {}) {
     return parseResult;
   }
 
-  // Walk Glimmer subtree, invoking visitors with full path context
-  function walkGlimmerTree(node, parentPath) {
-    if (!node || typeof node !== "object" || !node.type) return;
-    const path = { node, parent: parentPath?.node ?? null, parentPath };
-
-    if (visitors && node.type.startsWith("Glimmer")) {
-      const handler = visitors[node.type];
-      if (handler) handler(node, path);
-      if ("blockParams" in node && visitors.GlimmerBlockParams) {
-        visitors.GlimmerBlockParams(node, path);
-      }
-    }
-
-    const keys = glimmerVisitorKeys[node.type];
-    if (!keys) return;
-    for (const key of keys) {
-      const child = node[key];
-      if (!child) continue;
-      if (Array.isArray(child)) {
-        for (const item of child) {
-          walkGlimmerTree(item, path);
-        }
-      } else if (typeof child === "object" && child.type) {
-        walkGlimmerTree(child, path);
-      }
-    }
-  }
-
   result.ast = walk(result.ast, null, {
-    _(node, { next }) {
+    _(node, { next, visit, state }) {
       if (PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
-          if (visitors) walkGlimmerTree(ast, null);
-          return ast;
+          return visitors ? visit(ast, null) : ast;
         }
       }
+
+      if (visitors && node.type.startsWith("Glimmer")) {
+        const path = { node, parent: state?.parentPath?.node ?? null, parentPath: state?.parentPath ?? null };
+        const handler = visitors[node.type];
+        if (handler) handler(node, path);
+        if ("blockParams" in node && visitors.GlimmerBlockParams) {
+          visitors.GlimmerBlockParams(node, path);
+        }
+        next({ parentPath: path });
+        return;
+      }
+
       next();
     },
   });
