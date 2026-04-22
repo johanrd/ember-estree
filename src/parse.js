@@ -164,7 +164,11 @@ export function toTree(source, options = {}) {
       }
 
       if (visitors && node.type.startsWith("Glimmer")) {
-        const path = { node, parent: state?.parentPath?.node ?? null, parentPath: state?.parentPath ?? null };
+        const path = {
+          node,
+          parent: state?.parentPath?.node ?? null,
+          parentPath: state?.parentPath ?? null,
+        };
         const handler = visitors[node.type];
         if (handler) handler(node, path);
         if ("blockParams" in node && visitors.GlimmerBlockParams) {
