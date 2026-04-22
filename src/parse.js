@@ -181,71 +181,19 @@ export function toTree(source, options = {}) {
     }
   }
 
-  if (useCustomParser) {
-    // Custom parser path: mutate the parser's AST in-place, invoke visitors.
-    // Use the parser's visitorKeys to traverse efficiently (avoids Object.keys).
-    const parserVisitorKeys = result.visitorKeys || {};
-
-    function visitNode(node, parentPath) {
-      if (!node || typeof node !== "object" || !node.type) return;
-
-      const path = { node, parent: parentPath?.node ?? null, parentPath };
-
+  result.ast = walk(result.ast, null, {
+    _(node, { next }) {
       if (PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
-          for (const key of Object.keys(node)) {
-            if (!(key in ast) && key !== "parent") {
-              delete node[key];
-            }
-          }
-          Object.assign(node, ast);
-          if (visitors) walkGlimmerTree(node, parentPath);
-          return;
+          if (visitors) walkGlimmerTree(ast, null);
+          return ast;
         }
       }
-
-      // Use visitorKeys for efficient child traversal
-      const keys = parserVisitorKeys[node.type];
-      if (!keys) return;
-      for (const key of keys) {
-        const child = node[key];
-        if (!child) continue;
-        if (Array.isArray(child)) {
-          for (const item of child) {
-            if (item && typeof item === "object" && item.type) {
-              visitNode(item, path);
-            }
-          }
-        } else if (typeof child === "object" && child.type) {
-          visitNode(child, path);
-        }
-      }
-    }
-
-    visitNode(result.ast, null);
-  } else {
-    // Default oxc path: use zimmerframe walk (returns new tree)
-    result.ast = walk(result.ast, null, {
-      _(node, { next }) {
-        if (PLACEHOLDER_TYPES.has(node.type)) {
-          const parseResult = matchPlaceholder(node);
-          if (parseResult) {
-            return processPlaceholder(parseResult);
-          }
-        }
-        next();
-      },
-    });
-
-    // Walk Glimmer subtrees for visitors (after zimmerframe splicing)
-    if (visitors) {
-      for (const ti of templateInfos) {
-        walkGlimmerTree(ti.ast, null);
-      }
-    }
-  }
+      next();
+    },
+  });
 
   // Splice template tokens into the AST token stream.
   // Tokens are sorted by range, so use binary search for O(log n) lookup.
