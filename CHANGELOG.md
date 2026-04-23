@@ -1,5 +1,21 @@
 # Changelog
 
+## Release (2026-04-23)
+
+* ember-estree 0.5.0 (minor)
+
+#### :rocket: Enhancement
+* `ember-estree`
+  * [#36](https://github.com/NullVoxPopuli/ember-estree/pull/36) Add API for mutating the AST during initial parse ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+
+#### :house: Internal
+* `ember-estree`
+  * [#37](https://github.com/NullVoxPopuli/ember-estree/pull/37) Unify OXC and custom-parser traversal into a single zimmerframe walk ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 2
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+- [@NullVoxPopuli](https://github.com/NullVoxPopuli)
+
 ## Release (2026-04-20)
 
 * ember-estree 0.4.3 (patch)
