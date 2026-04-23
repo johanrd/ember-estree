@@ -34,6 +34,10 @@ const PLACEHOLDER_TYPES = new Set([
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
  * @param {function} [options.parser] - Custom JS/TS parser: (placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
  * @param {object}  [options.visitors] - Callbacks invoked for Glimmer nodes during traversal
+ * @param {function} [options.modify] - Extension hook: `(outerAst) => visitors`. Called once
+ *   after the JS/TS parser returns and before templates are spliced in. Returned handlers are
+ *   invoked `(node, path)` on every node during traversal — outer JS/TS nodes AND spliced
+ *   Glimmer subtrees — so callers can mutate the AST without a second pass.
  * @return {object}
  */
 export function toTree(source, options = {}) {
@@ -73,8 +77,13 @@ export function toTree(source, options = {}) {
     };
   }
 
-  // If no templates, return early
-  if (!parseResults.length) {
+  // Resolve user modify visitors once against the outer AST, before any
+  // template splicing — gives them a view of the unmodified JS/TS tree.
+  const modifyVisitors = options.modify?.(result.ast) ?? null;
+  const hasTemplates = parseResults.length > 0;
+
+  // Nothing to walk — attach visitor keys and return.
+  if (!hasTemplates && !modifyVisitors) {
     if (useCustomParser) {
       result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
       return result;
@@ -83,11 +92,11 @@ export function toTree(source, options = {}) {
     return result.ast;
   }
 
-  const codeLines = new DocumentLines(source);
+  const codeLines = hasTemplates ? new DocumentLines(source) : null;
   const templateInfos = [];
-
-  // Build a map of template ranges for lookup
-  const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
+  const templateRangeByStart = hasTemplates
+    ? new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]))
+    : null;
 
   // Process a matched placeholder node: create Glimmer AST and tokens
   function processPlaceholder(parseResult) {
@@ -155,30 +164,37 @@ export function toTree(source, options = {}) {
 
   result.ast = walk(result.ast, null, {
     _(node, { next, visit, state }) {
-      if (PLACEHOLDER_TYPES.has(node.type)) {
+      if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
-          return visitors ? visit(ast, null) : ast;
+          // Re-enter the walk on the spliced Glimmer subtree so visitors
+          // and modify handlers run there too. If neither is configured
+          // the subtree is spliced in as-is.
+          return visitors || modifyVisitors ? visit(ast, null) : ast;
         }
       }
 
+      const path = {
+        node,
+        parent: state?.parentPath?.node ?? null,
+        parentPath: state?.parentPath ?? null,
+      };
+
       if (visitors && node.type.startsWith("Glimmer")) {
-        const path = {
-          node,
-          parent: state?.parentPath?.node ?? null,
-          parentPath: state?.parentPath ?? null,
-        };
         const handler = visitors[node.type];
         if (handler) handler(node, path);
         if ("blockParams" in node && visitors.GlimmerBlockParams) {
           visitors.GlimmerBlockParams(node, path);
         }
-        next({ parentPath: path });
-        return;
       }
 
-      next();
+      if (modifyVisitors) {
+        const handler = modifyVisitors[node.type];
+        if (handler) handler(node, path);
+      }
+
+      next({ parentPath: path });
     },
   });
 

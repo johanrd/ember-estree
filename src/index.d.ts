@@ -49,6 +49,16 @@ export interface ParseOptions {
     [glimmerNodeType: string]: (node: ASTNode, path: VisitorPath) => void;
     GlimmerBlockParams?: (node: ASTNode, path: VisitorPath) => void;
   };
+  /**
+   * Extension hook for AST mutation. Called once with the outer JS/TS AST
+   * immediately after the parser returns, before templates are spliced in.
+   * The returned visitors fire on every node during traversal — outer JS/TS
+   * nodes AND spliced Glimmer subtrees — so callers can mutate the tree
+   * without a second pass.
+   */
+  modify?: (
+    outerAst: ASTNode,
+  ) => Record<string, (node: ASTNode, path: VisitorPath) => void> | null | undefined;
 }
 
 export class DocumentLines {
