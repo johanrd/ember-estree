@@ -89,7 +89,7 @@ export function toTree(source, options = {}) {
   // Visitors that relocate nodes (e.g. moving Glimmer comments into
   // `program.comments`) would otherwise fire a second time when the walk
   // reaches the new location.
-  const seen = hasVisitors ? new WeakSet() : null;
+  const seen = new WeakSet();
   const hasTemplates = parseResults.length > 0;
 
   // Nothing to walk — attach visitor keys and return.
