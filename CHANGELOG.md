@@ -2,6 +2,17 @@
 
 ## Release (2026-04-23)
 
+* ember-estree 0.6.0 (minor)
+
+#### :rocket: Enhancement
+* `ember-estree`
+  * [#42](https://github.com/NullVoxPopuli/ember-estree/pull/42) Token stream: comment tokens, extracted token module, ESLint opt-in flag ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-04-23)
+
 * ember-estree 0.5.1 (patch)
 
 #### :bug: Bug Fix
