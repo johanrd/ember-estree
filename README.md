@@ -63,16 +63,15 @@ Both `toTree` and `parse` accept an options object as their second argument.
 
 All options are optional.
 
-| Option               | Type                                             | Description                                                                                                                                                            |
-| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `filePath`           | `string`                                         | Used for language detection.                                                                                                                                           |
-| `templateOnly`       | `boolean`                                        | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                                                                      |
-| `includeParentLinks` | `boolean`                                        | Include `parent` back-references on Glimmer nodes. Defaults to `true`; set to `false` for JSON-serializable output.                                                    |
-| `parser`             | `(placeholderJS: string) => { ast, ... }`        | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                                                                      |
-| `visitors`           | `{ [GlimmerType]: (node, path) => void }`        | Callbacks fired on each Glimmer node during traversal.                                                                                                                 |
-| `modify`             | `(outerAst) => { [Type]: (node, path) => void }` | Mutate the AST during the initial parse — handlers fire on **every** node, JS/TS and Glimmer, in a single pass. See [Mutating the AST](#mutating-the-ast-with-modify). |
+| Option               | Type                                              | Description                                                                                                         |
+| -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `filePath`           | `string`                                          | Used for language detection.                                                                                        |
+| `templateOnly`       | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                   |
+| `includeParentLinks` | `boolean`                                         | Include `parent` back-references on Glimmer nodes. Defaults to `true`; set to `false` for JSON-serializable output. |
+| `parser`             | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                   |
+| `visitors`           | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors).   |
 
-Visitor handlers receive `(node, path)` where `path = { node, parent, parentPath }` — a linked list walking back to the root.
+Handler signature is `(node, path) => void`, where `path = { node, parent, parentPath }` — a linked list walking back to the root.
 
 ### Custom parser
 
@@ -94,19 +93,33 @@ const result = toTree(source, {
 
 The parser receives a placeholder-JS string (templates replaced with backtick expressions of equal length) and must return at least `{ ast }`. Additional fields like `scopeManager`, `visitorKeys`, or `services` are preserved on the returned result.
 
-### Mutating the AST with `modify`
+### Visitors
 
-Tools like ESLint and codemods often need to rewrite the tree as it's produced. The `modify` hook runs alongside the normal traversal so there's no second pass.
+Pass `visitors` to observe or rewrite the tree in a single traversal. Handlers fire on both outer JS/TS nodes and spliced Glimmer subtrees, and a single node is never dispatched twice — safe to relocate nodes mid-walk.
 
-`modify` is called once with the outer JS/TS AST immediately after parsing, before any templates are spliced in. The visitors it returns fire on both outer JS/TS nodes and spliced Glimmer subtrees during the same traversal. Handlers may mutate, relocate, or splice nodes; a single node is never dispatched twice, even after it's moved elsewhere.
+The pseudo-type `GlimmerBlockParams` fires on any node that carries a `blockParams` array.
 
-**Renaming identifiers across JS and Glimmer in one pass:**
+**Plain-object form** — use when you only need the type → handler map:
+
+```js
+import { toTree } from "ember-estree";
+
+const identifiers = [];
+toTree(source, {
+  visitors: {
+    Identifier: (node) => identifiers.push(node.name),
+    GlimmerPathExpression: (node) => identifiers.push(node.original),
+  },
+});
+```
+
+**Factory form** — use when you need the outer JS/TS AST up front (for example, to attach state to it before the walk):
 
 ```js
 import { toTree, print } from "ember-estree";
 
 const ast = toTree(`const world = "🌍"; const X = <template>{{world}}</template>;`, {
-  modify: () => ({
+  visitors: () => ({
     Identifier: (node) => (node.name = node.name.toUpperCase()),
     GlimmerPathExpression(node) {
       node.original = node.original.toUpperCase();
@@ -123,7 +136,7 @@ print(ast.program);
 
 ```js
 const ast = toTree(source, {
-  modify: (outerAst) => {
+  visitors: (outerAst) => {
     outerAst.program.comments = [...(outerAst.comments ?? [])];
     const push = (node) => outerAst.program.comments.push(node);
     return {
@@ -138,7 +151,7 @@ const ast = toTree(source, {
 
 ```js
 toTree(source, {
-  modify: () => ({
+  visitors: () => ({
     GlimmerMustacheCommentStatement(node, path) {
       const siblings = path.parent?.body ?? path.parent?.children;
       const idx = siblings?.indexOf(node) ?? -1;

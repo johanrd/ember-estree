@@ -10,12 +10,12 @@ function oxcParse(js) {
   return { ast: result.program };
 }
 
-describe("toTree — modify", () => {
-  it("is called once with the outer AST", () => {
+describe("toTree — visitors (factory form)", () => {
+  it("factory is called once with the outer AST", () => {
     let received;
     let callCount = 0;
     toTree(`const x = <template>hi</template>;`, {
-      modify: (ast) => {
+      visitors: (ast) => {
         received = ast;
         callCount++;
         return {};
@@ -27,20 +27,20 @@ describe("toTree — modify", () => {
     expect(received.program).toBeDefined();
   });
 
-  it("visitors fire on outer JS/TS nodes", () => {
+  it("handlers fire on outer JS/TS nodes", () => {
     const names = [];
     toTree(`const foo = 1; const bar = 2;`, {
-      modify: () => ({
+      visitors: () => ({
         Identifier: (node) => names.push(node.name),
       }),
     });
     expect(names.sort()).toEqual(["bar", "foo"]);
   });
 
-  it("visitors fire on Glimmer nodes inside templates", () => {
+  it("handlers fire on Glimmer nodes inside templates", () => {
     const seen = [];
     toTree(`const X = <template>{{name}}</template>;`, {
-      modify: () => ({
+      visitors: () => ({
         GlimmerPathExpression: (node) => seen.push(node.original),
       }),
     });
@@ -49,7 +49,7 @@ describe("toTree — modify", () => {
 
   it("mutations to JS identifiers persist in the printed output", () => {
     const ast = toTree(`const foo = 1; const bar = 2;`, {
-      modify: () => ({
+      visitors: () => ({
         Identifier: (node) => (node.name = [...node.name].reverse().join("")),
       }),
     });
@@ -61,7 +61,7 @@ describe("toTree — modify", () => {
 
   it("reverses identifiers across JS and Glimmer parts", () => {
     const ast = toTree(`const hello = 1; const X = <template>{{world}}</template>;`, {
-      modify: () => ({
+      visitors: () => ({
         Identifier: (node) => (node.name = [...node.name].reverse().join("")),
         GlimmerPathExpression(node) {
           const reversed = [...node.original].reverse().join("");
@@ -79,7 +79,7 @@ describe("toTree — modify", () => {
   it("collects Glimmer comments into program.comments", () => {
     const source = `const X = <template><!-- html --> {{! short }} {{!-- long --}}</template>;`;
     const ast = toTree(source, {
-      modify: (outerAst) => {
+      visitors: (outerAst) => {
         outerAst.program.comments = [];
         const collect = (node) => outerAst.program.comments.push(node);
         return {
@@ -93,7 +93,7 @@ describe("toTree — modify", () => {
 
   it("moves a Glimmer comment into program.comments and removes it from the template", () => {
     const ast = toTree(`const X = <template><h1>Hi</h1>{{! drop me }}<p>Bye</p></template>;`, {
-      modify: (outerAst) => {
+      visitors: (outerAst) => {
         outerAst.program.comments = [];
         return {
           GlimmerMustacheCommentStatement(node, path) {
@@ -113,7 +113,7 @@ describe("toTree — modify", () => {
 
   it("mutating a comment value changes printed output (end-to-end)", () => {
     const ast = toTree(`const X = <template>{{!-- original --}}</template>;`, {
-      modify: () => ({
+      visitors: () => ({
         GlimmerMustacheCommentStatement: (node) => (node.value = "updated"),
       }),
     });
@@ -125,7 +125,7 @@ describe("toTree — modify", () => {
   it("path.parent is set correctly for Glimmer nodes", () => {
     let pathParent;
     toTree(`const X = <template><div>{{name}}</div></template>;`, {
-      modify: () => ({
+      visitors: () => ({
         GlimmerPathExpression: (_node, path) => (pathParent = path.parent),
       }),
     });
@@ -135,7 +135,7 @@ describe("toTree — modify", () => {
   it("works when there are no templates in the source", () => {
     const names = [];
     const ast = toTree(`const a = 1; const b = 2;`, {
-      modify: () => ({
+      visitors: () => ({
         Identifier(node) {
           names.push(node.name);
           node.name = `${node.name}_seen`;
@@ -149,17 +149,17 @@ describe("toTree — modify", () => {
     `);
   });
 
-  it("returning null or undefined from modify is a no-op", () => {
+  it("returning null or undefined from the factory is a no-op", () => {
     const source = `const x = <template>hi</template>;`;
-    expect(() => toTree(source, { modify: () => null })).not.toThrow();
-    expect(() => toTree(source, { modify: () => undefined })).not.toThrow();
+    expect(() => toTree(source, { visitors: () => null })).not.toThrow();
+    expect(() => toTree(source, { visitors: () => undefined })).not.toThrow();
   });
 
   it("works with a custom parser on the JS/TS side", () => {
     const seen = [];
     const result = toTree(`const foo = 1; const X = <template>{{name}}</template>;`, {
       parser: oxcParse,
-      modify: () => ({
+      visitors: () => ({
         Identifier: (node) => seen.push(node.name),
         GlimmerPathExpression: (node) => seen.push(`glimmer:${node.original}`),
       }),
@@ -170,19 +170,15 @@ describe("toTree — modify", () => {
     expect(result.ast).toBeDefined();
   });
 
-  it("coexists with options.visitors — both fire on Glimmer nodes", () => {
-    const fromVisitors = [];
-    const fromModify = [];
+  it("plain-object form fires on every node, not just Glimmer", () => {
+    const types = new Set();
     toTree(`const X = <template>{{name}}</template>;`, {
-      parser: oxcParse,
       visitors: {
-        GlimmerPathExpression: (node) => fromVisitors.push(node.original),
+        Identifier: (node) => types.add(`js:${node.name}`),
+        GlimmerPathExpression: (node) => types.add(`glimmer:${node.original}`),
       },
-      modify: () => ({
-        GlimmerPathExpression: (node) => fromModify.push(node.original),
-      }),
     });
-    expect(fromVisitors).toEqual(["name"]);
-    expect(fromModify).toEqual(["name"]);
+    expect(types.has("js:X")).toBe(true);
+    expect(types.has("glimmer:name")).toBe(true);
   });
 });

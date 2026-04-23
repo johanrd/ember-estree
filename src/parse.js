@@ -33,11 +33,11 @@ const PLACEHOLDER_TYPES = new Set([
  * @param {string}  [options.filePath] - File path for language detection
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
  * @param {function} [options.parser] - Custom JS/TS parser: (placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
- * @param {object}  [options.visitors] - Callbacks invoked for Glimmer nodes during traversal
- * @param {function} [options.modify] - Extension hook: `(outerAst) => visitors`. Called once
- *   after the JS/TS parser returns and before templates are spliced in. Returned handlers are
- *   invoked `(node, path)` on every node during traversal — outer JS/TS nodes AND spliced
- *   Glimmer subtrees — so callers can mutate the AST without a second pass.
+ * @param {object|function} [options.visitors] - Either a map of `{ [Type]: (node, path) => void }`
+ *   handlers, or a factory `(outerAst) => handlers` invoked once after parsing (before any
+ *   template splicing) to give callers a view of the raw JS/TS tree. Handlers fire on every
+ *   node during traversal — outer JS/TS nodes AND spliced Glimmer subtrees — in a single pass.
+ *   The pseudo-type `GlimmerBlockParams` fires on any node that carries `blockParams`.
  * @return {object}
  */
 export function toTree(source, options = {}) {
@@ -51,7 +51,6 @@ export function toTree(source, options = {}) {
   let js = toPlaceholderJS(source, parseResults);
 
   const useCustomParser = !!options.parser;
-  const visitors = options.visitors || null;
 
   // Parse the placeholder JS — use custom parser or default oxc
   let result;
@@ -77,18 +76,22 @@ export function toTree(source, options = {}) {
     };
   }
 
-  // Resolve user modify visitors once against the outer AST, before any
-  // template splicing — gives them a view of the unmodified JS/TS tree.
-  const modifyVisitors = options.modify?.(result.ast) ?? null;
-  // Guard against dispatching a modify handler twice on the same node.
+  // Resolve user visitors against the outer AST. A plain object is used
+  // as-is; a factory is called once so callers can introspect the raw
+  // JS/TS tree before any template splicing.
+  const visitors =
+    typeof options.visitors === "function"
+      ? (options.visitors(result.ast) ?? null)
+      : (options.visitors ?? null);
+  // Guard against dispatching a handler twice on the same node.
   // Visitors that relocate nodes (e.g. moving Glimmer comments into
   // `program.comments`) would otherwise fire a second time when the walk
   // reaches the new location.
-  const seenByModify = modifyVisitors ? new WeakSet() : null;
+  const seen = visitors ? new WeakSet() : null;
   const hasTemplates = parseResults.length > 0;
 
   // Nothing to walk — attach visitor keys and return.
-  if (!hasTemplates && !modifyVisitors) {
+  if (!hasTemplates && !visitors) {
     if (useCustomParser) {
       result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
       return result;
@@ -174,9 +177,9 @@ export function toTree(source, options = {}) {
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
           // Re-enter the walk on the spliced Glimmer subtree so visitors
-          // and modify handlers run there too. If neither is configured
-          // the subtree is spliced in as-is.
-          return visitors || modifyVisitors ? visit(ast, null) : ast;
+          // run there too. If none are configured the subtree is spliced
+          // in as-is.
+          return visitors ? visit(ast, null) : ast;
         }
       }
 
@@ -186,18 +189,13 @@ export function toTree(source, options = {}) {
         parentPath: state?.parentPath ?? null,
       };
 
-      if (visitors && node.type.startsWith("Glimmer")) {
+      if (visitors && !seen.has(node)) {
+        seen.add(node);
         const handler = visitors[node.type];
         if (handler) handler(node, path);
         if ("blockParams" in node && visitors.GlimmerBlockParams) {
           visitors.GlimmerBlockParams(node, path);
         }
-      }
-
-      if (modifyVisitors && !seenByModify.has(node)) {
-        seenByModify.add(node);
-        const handler = modifyVisitors[node.type];
-        if (handler) handler(node, path);
       }
 
       next({ parentPath: path });
