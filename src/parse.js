@@ -205,6 +205,21 @@ export function toTree(source, options = {}) {
   });
 
   // Splice template tokens into the AST token stream.
+  //
+  // `tokens` is the flat lexed stream (keywords, punctuators, identifiers,
+  // literals) that ESLint, formatters, and source-map tooling consume —
+  // `SourceCode.getTokens()` reads it directly.
+  //
+  // We replaced each <template>...</template> region with a backtick
+  // placeholder before handing the source to the JS/TS parser, so the
+  // parser's tokens for those ranges describe the placeholder, not the
+  // real source. Here we swap them out for the real lexemes:
+  //   1. a fabricated `<template>` Punctuator (added in processPlaceholder)
+  //   2. the Glimmer AST's own tokens (from transforms.js)
+  //   3. a fabricated `</template>` Punctuator
+  // so consumers see a position-accurate token stream matching the
+  // original source byte-for-byte across JS and Glimmer regions.
+  //
   // Tokens are sorted by range, so use binary search for O(log n) lookup.
   const astRoot = result.ast.program || result.ast;
   if (astRoot.tokens) {
