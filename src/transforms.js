@@ -7,6 +7,8 @@ import {
   preprocess as glimmerPreprocess,
 } from "@glimmer/syntax";
 
+import { tokenize, buildTokenStream } from "./tokens.js";
+
 /**
  * Converts between character offsets and line/column positions.
  * Lines are 1-based, columns are 0-based (matching ESTree & Glimmer conventions).
@@ -82,89 +84,6 @@ function removeFromParent(nodes) {
   }
 }
 
-function isAlphaNumeric(code) {
-  return !(!(code > 47 && code < 58) && !(code > 64 && code < 91) && !(code > 96 && code < 123));
-}
-
-function isWhiteSpaceCode(code) {
-  return code === 32 || code === 9 || code === 13 || code === 10 || code === 11;
-}
-
-function tokenize(template, doc, startOffset) {
-  const tokens = [];
-  let wordStart = -1;
-  function pushToken(value, type, range) {
-    tokens.push({
-      type,
-      value,
-      range,
-      start: range[0],
-      end: range[1],
-      loc: {
-        start: { ...doc.offsetToPosition(range[0]), index: range[0] },
-        end: { ...doc.offsetToPosition(range[1]), index: range[1] },
-      },
-    });
-  }
-  for (let i = 0; i < template.length; i++) {
-    const code = template.charCodeAt(i);
-    if (isAlphaNumeric(code)) {
-      if (wordStart < 0) wordStart = i;
-    } else {
-      if (wordStart >= 0) {
-        pushToken(template.slice(wordStart, i), "word", [startOffset + wordStart, startOffset + i]);
-        wordStart = -1;
-      }
-      if (!isWhiteSpaceCode(code)) {
-        pushToken(template[i], "Punctuator", [startOffset + i, startOffset + i + 1]);
-      }
-    }
-  }
-  if (wordStart >= 0) {
-    pushToken(template.slice(wordStart), "word", [
-      startOffset + wordStart,
-      startOffset + template.length,
-    ]);
-  }
-  return tokens;
-}
-
-function buildTokenStream(rawTokens, comments, textNodes) {
-  const commentIntervals = comments.map((c) => c.range).sort((a, b) => a[0] - b[0]);
-  const textNodeIntervals = textNodes.map((t) => t.range).sort((a, b) => a[0] - b[0]);
-
-  function isCovered(tokenRange, intervals) {
-    let lo = 0;
-    let hi = intervals.length - 1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      const iv = intervals[mid];
-      if (iv[0] <= tokenRange[0] && iv[1] >= tokenRange[1]) return true;
-      if (iv[0] > tokenRange[0]) hi = mid - 1;
-      else lo = mid + 1;
-    }
-    return false;
-  }
-
-  const filteredTokens = rawTokens.filter(
-    (t) => !isCovered(t.range, commentIntervals) && !isCovered(t.range, textNodeIntervals),
-  );
-
-  const sortedTextNodes = [...textNodes].sort((a, b) => a.range[0] - b.range[0]);
-  const result = [];
-  let ti = 0;
-  for (const token of filteredTokens) {
-    while (ti < sortedTextNodes.length && sortedTextNodes[ti].range[0] < token.range[0]) {
-      result.push(sortedTextNodes[ti++]);
-    }
-    result.push(token);
-  }
-  while (ti < sortedTextNodes.length) {
-    result.push(sortedTextNodes[ti++]);
-  }
-  return result;
-}
-
 /**
  * Parse and transform a Glimmer template into an ESTree-compatible AST.
  * Internal — consumed by toTree.
@@ -173,7 +92,8 @@ function buildTokenStream(rawTokens, comments, textNodes) {
  * positions, create parts/blockParamNodes, nullify empty hashes, and
  * prefix types. No separate collect-then-transform loop.
  */
-export function processTemplate(templateContent, codeLines, templateRange) {
+export function processTemplate(templateContent, codeLines, options = {}) {
+  const { templateRange, tokens: generateTokens = false } = options;
   const offset = templateRange[0];
   const docLines = offset === 0 ? codeLines : new DocumentLines(templateContent);
 
@@ -335,7 +255,15 @@ export function processTemplate(templateContent, codeLines, templateRange) {
 
   removeFromParent(emptyTextNodes);
 
-  ast.tokens = buildTokenStream(tokenize(templateContent, codeLines, offset), comments, textNodes);
+  if (generateTokens) {
+    ast.tokens = buildTokenStream(
+      tokenize(templateContent, codeLines, offset),
+      comments,
+      textNodes,
+      templateContent,
+      offset,
+    );
+  }
   ast.contents = templateContent;
 
   return { ast, comments };

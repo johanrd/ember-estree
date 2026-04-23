@@ -31,6 +31,7 @@ const PLACEHOLDER_TYPES = new Set([
  * @param {string} source
  * @param {object} [options]
  * @param {string}  [options.filePath] - File path for language detection
+ * @param {boolean} [options.tokens] - Generate a flat token stream on the AST (needed by ESLint; skipped by default)
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
  * @param {function} [options.parser] - Custom JS/TS parser: (placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
  * @param {object|function} [options.visitors] - Either a map of `{ [Type]: (node, path) => void }`
@@ -41,8 +42,13 @@ const PLACEHOLDER_TYPES = new Set([
  * @return {object}
  */
 export function toTree(source, options = {}) {
+  const generateTokens = !!options.tokens;
+
   if (options.templateOnly) {
-    return processTemplate(source, new DocumentLines(source), [0, source.length]);
+    return processTemplate(source, new DocumentLines(source), {
+      templateRange: [0, source.length],
+      tokens: generateTokens,
+    });
   }
 
   let parseResults = preprocessor.parse(source);
@@ -115,7 +121,10 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast } = processTemplate(templateContent, codeLines, contentRange);
+    const { ast } = processTemplate(templateContent, codeLines, {
+      templateRange: contentRange,
+      tokens: generateTokens,
+    });
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;
@@ -126,27 +135,29 @@ export function toTree(source, options = {}) {
       end: codeLines.offsetToPosition(fullRange[1]),
     };
 
-    // Add tokens for the <template> and </template> tags
-    const openEnd = contentRange[0];
-    const closeStart = contentRange[1];
-    const openTag = source.slice(fullRange[0], openEnd);
-    const closeTag = source.slice(closeStart, fullRange[1]);
-    const makeToken = (value, range) => ({
-      type: "Punctuator",
-      value,
-      range,
-      start: range[0],
-      end: range[1],
-      loc: {
-        start: codeLines.offsetToPosition(range[0]),
-        end: codeLines.offsetToPosition(range[1]),
-      },
-    });
-    ast.tokens = [
-      makeToken(openTag, [fullRange[0], openEnd]),
-      ...(ast.tokens || []),
-      makeToken(closeTag, [closeStart, fullRange[1]]),
-    ];
+    if (generateTokens) {
+      // Add tokens for the <template> and </template> tags
+      const openEnd = contentRange[0];
+      const closeStart = contentRange[1];
+      const openTag = source.slice(fullRange[0], openEnd);
+      const closeTag = source.slice(closeStart, fullRange[1]);
+      const makeToken = (value, range) => ({
+        type: "Punctuator",
+        value,
+        range,
+        start: range[0],
+        end: range[1],
+        loc: {
+          start: codeLines.offsetToPosition(range[0]),
+          end: codeLines.offsetToPosition(range[1]),
+        },
+      });
+      ast.tokens = [
+        makeToken(openTag, [fullRange[0], openEnd]),
+        ...(ast.tokens || []),
+        makeToken(closeTag, [closeStart, fullRange[1]]),
+      ];
+    }
 
     templateInfos.push({ utf16Range: fullRange, ast });
     return ast;

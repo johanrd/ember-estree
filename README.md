@@ -63,14 +63,35 @@ Both `toTree` and `parse` accept an options object as their second argument.
 
 All options are optional.
 
-| Option         | Type                                              | Description                                                                                                       |
-| -------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `filePath`     | `string`                                          | Used for language detection.                                                                                      |
-| `templateOnly` | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                 |
-| `parser`       | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                 |
-| `visitors`     | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors). |
+| Option         | Type                                              | Description                                                                                                           |
+| -------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `filePath`     | `string`                                          | Used for language detection.                                                                                          |
+| `tokens`       | `boolean`                                         | Generate a flat `ast.tokens` array. Required by ESLint; skipped by default so codemods and type-checkers pay nothing. |
+| `templateOnly` | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                     |
+| `parser`       | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                     |
+| `visitors`     | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors).     |
 
-Handler signature is `(node, path) => void`, where `path = { node, parent, parentPath }` — a linked list walking back to the root.
+Handler signature is `(node, path) => void`, where `path = { node, parent, parentPath }` — a linked list that walks all the way back through the JS/TS root, so visitors can locate the enclosing scope or class from within a Glimmer subtree.
+
+### Token stream
+
+Pass `tokens: true` to populate `ast.tokens` with a flat, position-sorted array of lexemes spanning the full file — including Glimmer tokens spliced in place of each `<template>` region. This is what ESLint's `SourceCode` needs; omit it for codemods or type-checkers that don't use the token stream.
+
+```js
+import { toTree } from "ember-estree";
+
+const result = toTree(source, {
+  tokens: true,
+  parser: myTsParser,
+});
+// result.ast.program.tokens now contains JS + Glimmer tokens in source order
+```
+
+For `.hbs` files via `templateOnly`, pass both flags:
+
+```js
+toTree(hbsSource, { templateOnly: true, tokens: true });
+```
 
 ### Custom parser
 

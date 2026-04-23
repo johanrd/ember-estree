@@ -157,7 +157,7 @@ function registerGlimmerScopes(program, scopeManager, visitorKeys) {
  * Implements the ESLint `parseForESLint()` API.
  */
 export function parseForESLint(code, options = {}) {
-  const result = toTree(code, options);
+  const result = toTree(code, { ...options, tokens: true });
   const program = result.program || result;
   const visitorKeys = result.visitorKeys || glimmerVisitorKeys;
 
