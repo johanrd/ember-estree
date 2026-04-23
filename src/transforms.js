@@ -61,6 +61,11 @@ export const glimmerVisitorKeys = (() => {
 //   VarHead: name, original
 //   Block: blockParams
 const _desc = { value: undefined, configurable: true, enumerable: true, writable: true };
+const _parentDesc = { value: null, configurable: true, enumerable: false, writable: true };
+function setParent(node, parent) {
+  _parentDesc.value = parent;
+  Object.defineProperty(node, "parent", _parentDesc);
+}
 function defOwn(obj, key) {
   _desc.value = obj[key];
   Object.defineProperty(obj, key, _desc);
@@ -197,7 +202,7 @@ export function processTemplate(
   // children using raw visitor keys. Type prefixing happens inline
   // AFTER recursing (so children see the original type during lookup).
   function visit(n, parent) {
-    n.parent = parent;
+    setParent(n, parent);
     allNodes.push(n);
 
     // Categorize
@@ -257,18 +262,17 @@ export function processTemplate(
       n.name = n.tag;
       const p = n.path.head;
       const partRange = toFileRange(p.loc);
-      n.parts = [
-        {
-          type: "GlimmerElementNodePart",
-          original: p.original,
-          name: p.original,
-          parent: n,
-          range: partRange,
-          start: partRange[0],
-          end: partRange[1],
-          loc: toFileLoc(partRange),
-        },
-      ];
+      const part = {
+        type: "GlimmerElementNodePart",
+        original: p.original,
+        name: p.original,
+        range: partRange,
+        start: partRange[0],
+        end: partRange[1],
+        loc: toFileLoc(partRange),
+      };
+      setParent(part, n);
+      n.parts = [part];
     }
 
     // Create blockParamNodes
@@ -276,27 +280,31 @@ export function processTemplate(
       if (n.params && n.params.length === n.blockParams.length) {
         n.blockParamNodes = n.params.map((p) => {
           const range = toFileRange(p.loc);
-          return {
+          const bp = {
             type: "GlimmerBlockParam",
             name: p.original || p.name,
             original: p.original,
-            parent: n,
             range,
             start: range[0],
             end: range[1],
             loc: toFileLoc(range),
           };
+          setParent(bp, n);
+          return bp;
         });
       } else {
-        n.blockParamNodes = n.blockParams.map((bpName) => ({
-          type: "GlimmerBlockParam",
-          name: bpName,
-          parent: n,
-          range: [n.range[0], n.range[1]],
-          start: n.range[0],
-          end: n.range[1],
-          loc: toFileLoc(n.range),
-        }));
+        n.blockParamNodes = n.blockParams.map((bpName) => {
+          const bp = {
+            type: "GlimmerBlockParam",
+            name: bpName,
+            range: [n.range[0], n.range[1]],
+            start: n.range[0],
+            end: n.range[1],
+            loc: toFileLoc(n.range),
+          };
+          setParent(bp, n);
+          return bp;
+        });
       }
     }
 
