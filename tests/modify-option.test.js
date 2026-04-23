@@ -76,33 +76,36 @@ describe("toTree — modify", () => {
     `);
   });
 
-  it("collects comments from JS and Glimmer in one pass", () => {
+  it("collects Glimmer comments into program.comments", () => {
     const source = `const X = <template><!-- html --> {{! short }} {{!-- long --}}</template>;`;
-    const comments = [];
-    toTree(source, {
-      modify: () => ({
-        GlimmerCommentStatement: (node) => comments.push({ kind: "html", value: node.value }),
-        GlimmerMustacheCommentStatement: (node) =>
-          comments.push({ kind: node.longForm ? "long" : "short", value: node.value }),
-      }),
+    const ast = toTree(source, {
+      modify: (outerAst) => {
+        outerAst.program.comments = [];
+        const collect = (node) => outerAst.program.comments.push(node);
+        return {
+          GlimmerCommentStatement: collect,
+          GlimmerMustacheCommentStatement: collect,
+        };
+      },
     });
-    expect(comments).toEqual([
-      { kind: "html", value: " html " },
-      { kind: "short", value: " short " },
-      { kind: "long", value: " long " },
-    ]);
+    expect(ast.program.comments.map((c) => c.value)).toEqual([" html ", " short ", " long "]);
   });
 
-  it("removes comments from Glimmer template body", () => {
+  it("moves a Glimmer comment into program.comments and removes it from the template", () => {
     const ast = toTree(`const X = <template><h1>Hi</h1>{{! drop me }}<p>Bye</p></template>;`, {
-      modify: () => ({
-        GlimmerMustacheCommentStatement(node, path) {
-          const siblings = path.parent?.body || path.parent?.children;
-          const idx = siblings?.indexOf(node) ?? -1;
-          if (idx >= 0) siblings.splice(idx, 1);
-        },
-      }),
+      modify: (outerAst) => {
+        outerAst.program.comments = [];
+        return {
+          GlimmerMustacheCommentStatement(node, path) {
+            outerAst.program.comments.push(node);
+            const siblings = path.parent?.body || path.parent?.children;
+            const idx = siblings?.indexOf(node) ?? -1;
+            if (idx >= 0) siblings.splice(idx, 1);
+          },
+        };
+      },
     });
+    expect(ast.program.comments.map((c) => c.value)).toEqual([" drop me "]);
     expect(print(ast.program)).toMatchInlineSnapshot(
       `"const X = <template><h1>Hi</h1><p>Bye</p></template>;"`,
     );

@@ -80,6 +80,11 @@ export function toTree(source, options = {}) {
   // Resolve user modify visitors once against the outer AST, before any
   // template splicing — gives them a view of the unmodified JS/TS tree.
   const modifyVisitors = options.modify?.(result.ast) ?? null;
+  // Guard against dispatching a modify handler twice on the same node.
+  // Visitors that relocate nodes (e.g. moving Glimmer comments into
+  // `program.comments`) would otherwise fire a second time when the walk
+  // reaches the new location.
+  const seenByModify = modifyVisitors ? new WeakSet() : null;
   const hasTemplates = parseResults.length > 0;
 
   // Nothing to walk — attach visitor keys and return.
@@ -189,7 +194,8 @@ export function toTree(source, options = {}) {
         }
       }
 
-      if (modifyVisitors) {
+      if (modifyVisitors && !seenByModify.has(node)) {
+        seenByModify.add(node);
         const handler = modifyVisitors[node.type];
         if (handler) handler(node, path);
       }
