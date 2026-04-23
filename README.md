@@ -63,11 +63,11 @@ Both `toTree` and `parse` accept an options object as their second argument.
 
 | Option               | Type                                             | Description                                                                                                                                                            |
 | -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `filePath`           | `string`                                         | Used for language detection (`.gts` is parsed as `.ts`, etc.). Defaults to `"input.ts"`.                                                                               |
+| `filePath`           | `string`                                         | Used for language detection (`.gts` is parsed as `.ts`, etc.).                                                                                                         |
 | `templateOnly`       | `boolean`                                        | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                                                                      |
 | `includeParentLinks` | `boolean`                                        | Include `parent` back-references on Glimmer nodes. Defaults to `true`; set to `false` for JSON-serializable output.                                                    |
 | `parser`             | `(placeholderJS: string) => { ast, ... }`        | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                                                                      |
-| `visitors`           | `{ [GlimmerType]: (node, path) => void }`        | Callbacks fired on each Glimmer node during traversal, in DFS order.                                                                                                   |
+| `visitors`           | `{ [GlimmerType]: (node, path) => void }`        | Callbacks fired on each Glimmer node during traversal.                                                                                                                 |
 | `modify`             | `(outerAst) => { [Type]: (node, path) => void }` | Mutate the AST during the initial parse — handlers fire on **every** node, JS/TS and Glimmer, in a single pass. See [Mutating the AST](#mutating-the-ast-with-modify). |
 
 Visitor handlers receive `(node, path)` where `path = { node, parent, parentPath }` — a linked list walking back to the root.
