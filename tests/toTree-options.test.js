@@ -87,9 +87,16 @@ describe("toTree — error handling", () => {
 });
 
 describe("toTree — tokens", () => {
-  it("produces tokens covering the template range", () => {
+  it("no tokens by default", () => {
     const source = `const x = <template>Hello {{name}}</template>;`;
     const ast = toTree(source);
+    const tpl = findNode(ast, "GlimmerTemplate");
+    expect(tpl.tokens).toBeUndefined();
+  });
+
+  it("produces tokens covering the template range when tokens: true", () => {
+    const source = `const x = <template>Hello {{name}}</template>;`;
+    const ast = toTree(source, { tokens: true });
     const tpl = findNode(ast, "GlimmerTemplate");
     expect(tpl.tokens).toBeDefined();
     expect(tpl.tokens.length).toBeGreaterThan(0);
@@ -101,7 +108,7 @@ describe("toTree — tokens", () => {
 
   it("produces tokens for an empty template", () => {
     const source = `const x = <template></template>;`;
-    const ast = toTree(source);
+    const ast = toTree(source, { tokens: true });
     const tpl = findNode(ast, "GlimmerTemplate");
     expect(tpl.tokens).toBeDefined();
     // At minimum: <template> and </template>
@@ -112,7 +119,7 @@ describe("toTree — tokens", () => {
 
   it("tokens have range and loc", () => {
     const source = `const x = <template>hi</template>;`;
-    const ast = toTree(source);
+    const ast = toTree(source, { tokens: true });
     const tpl = findNode(ast, "GlimmerTemplate");
     for (const token of tpl.tokens) {
       expect(token.range).toBeDefined();
