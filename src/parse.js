@@ -182,7 +182,14 @@ export function toTree(source, options = {}) {
           // configured we re-enter the walk manually via `visit()` to
           // dispatch them across the Glimmer nodes. With no handlers the
           // walk would be pure overhead, so just return the subtree.
-          return hasVisitors ? visit(ast, null) : ast;
+          //
+          // Pass `state` (the placeholder's inherited parent context) so the
+          // Glimmer root's parentPath reflects its true JS parent. The
+          // placeholder (TemplateLiteral / StaticBlock) is an internal
+          // artifact — the GlimmerTemplate logically lives where the
+          // placeholder was, so its parent is e.g. VariableDeclarator or
+          // ClassBody, not the placeholder itself.
+          return hasVisitors ? visit(ast, state) : ast;
         }
       }
 
