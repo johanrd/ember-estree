@@ -172,7 +172,7 @@ export function processTemplate(
   templateContent,
   codeLines,
   templateRange,
-  { includeParentLinks = true } = {},
+  { includeParentLinks = true, keepCommentsInBody = false } = {},
 ) {
   const offset = templateRange[0];
   const docLines = offset === 0 ? codeLines : new DocumentLines(templateContent);
@@ -333,6 +333,23 @@ export function processTemplate(
   visit(ast, null);
 
   removeFromParent(emptyTextNodes);
+
+  // By default, surface comments the way ESLint and other ESTree
+  // consumers expect: removed from `ast.body` and coerced to ESTree
+  // `type: "Block"`. The returned `comments` array is what a wrapping
+  // parser typically assigns to `Program.comments`.
+  //
+  // Pass `keepCommentsInBody: true` to retain 0.4.3's behavior —
+  // comment nodes stay in the body with their semantic Glimmer types
+  // (`GlimmerCommentStatement`, `GlimmerMustacheCommentStatement`)
+  // so traversal-based tooling (e.g. zmod) can locate them via
+  // `root.find()`. The `comments` array is still returned either way.
+  if (!keepCommentsInBody) {
+    removeFromParent(comments);
+    for (const c of comments) {
+      c.type = "Block";
+    }
+  }
 
   ast.tokens = buildTokenStream(tokenize(templateContent, codeLines, offset), comments, textNodes);
   ast.contents = templateContent;

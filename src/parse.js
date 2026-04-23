@@ -37,7 +37,9 @@ const PLACEHOLDER_TYPES = new Set([
  * @return {object}
  */
 export function toTree(source, options = {}) {
-  const templateOpts = options.includeParentLinks === false ? { includeParentLinks: false } : {};
+  const templateOpts = {};
+  if (options.includeParentLinks === false) templateOpts.includeParentLinks = false;
+  if (options.keepCommentsInBody === true) templateOpts.keepCommentsInBody = true;
 
   if (options.templateOnly) {
     return processTemplate(source, new DocumentLines(source), [0, source.length], templateOpts);
@@ -98,7 +100,12 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast } = processTemplate(templateContent, codeLines, contentRange, templateOpts);
+    const { ast, comments: templateComments } = processTemplate(
+      templateContent,
+      codeLines,
+      contentRange,
+      templateOpts
+    );
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;
@@ -131,7 +138,7 @@ export function toTree(source, options = {}) {
       makeToken(closeTag, [closeStart, fullRange[1]]),
     ];
 
-    templateInfos.push({ utf16Range: fullRange, ast });
+    templateInfos.push({ utf16Range: fullRange, ast, templateComments });
     return ast;
   }
 
@@ -269,6 +276,34 @@ export function toTree(source, options = {}) {
         lastIdx++;
       }
       tokens.splice(firstIdx, lastIdx - firstIdx, ...ti.ast.tokens);
+    }
+  }
+
+  // Mirror template comments into `astRoot.comments`. When the default
+  // `keepCommentsInBody: false` is in effect, processTemplate has
+  // already coerced these to ESTree `Block` and removed them from
+  // `ast.body` — so this exposes them to ESLint's inline-config
+  // scanner and to any rule that reads `sourceCode.getAllComments()`,
+  // restoring the pre-0.4.3 contract.
+  //
+  // When `keepCommentsInBody: true` is opted into by a consumer that
+  // wants zmod-style body traversal, the originals live in the body
+  // with their semantic Glimmer types. Mirroring them here is then
+  // skipped, because a `Block` comment and a body-resident Glimmer
+  // comment at the same range make ESLint's token-store indexer
+  // infinite-loop (see createIndexMap in eslint/source-code/token-store).
+  if (!options.keepCommentsInBody) {
+    const hasTemplateComments = templateInfos.some(
+      (ti) => ti.templateComments && ti.templateComments.length > 0
+    );
+    if (hasTemplateComments) {
+      const astRootForComments = result.ast.program || result.ast;
+      if (!astRootForComments.comments) astRootForComments.comments = [];
+      for (const ti of templateInfos) {
+        if (!ti.templateComments) continue;
+        for (const c of ti.templateComments) astRootForComments.comments.push(c);
+      }
+      astRootForComments.comments.sort((a, b) => a.range[0] - b.range[0]);
     }
   }
 

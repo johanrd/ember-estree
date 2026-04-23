@@ -5,7 +5,7 @@ import { toTree, print } from "../src/index.js";
 describe("Glimmer comment nodes — parse + mutate + print", () => {
   it("HTML comments (<!-- -->) appear in GlimmerTemplate.body as GlimmerCommentStatement", () => {
     const ast = toTree(`const X = <template><!-- a comment --></template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     const comments = [];
@@ -21,7 +21,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("short mustache comments ({{! }}) appear as GlimmerMustacheCommentStatement", () => {
     const ast = toTree(`const X = <template>{{! a comment }}</template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     const comments = [];
@@ -37,7 +37,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("long mustache comments ({{!-- --}}) appear as GlimmerMustacheCommentStatement", () => {
     const ast = toTree(`const X = <template>{{!-- a comment --}}</template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     const comments = [];
@@ -53,7 +53,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("mutating an HTML comment value via zimmerframe changes print output", () => {
     const ast = toTree(`const X = <template><!-- old content --></template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     let comment;
@@ -69,7 +69,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("mutating a short mustache comment value via zimmerframe changes print output", () => {
     const ast = toTree(`const X = <template>{{! old content }}</template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     let comment;
@@ -85,7 +85,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("mutating a long mustache comment value via zimmerframe changes print output", () => {
     const ast = toTree(`const X = <template>{{!-- old content --}}</template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     let comment;
@@ -101,7 +101,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("mutates all three comment types in one walk", () => {
     const ast = toTree(`const X = <template><!-- html -->{{! short }}{{!-- long --}}</template>;`, {
-      includeParentLinks: false,
+      includeParentLinks: false, keepCommentsInBody: true,
     });
 
     const htmlComments = [];
@@ -125,7 +125,7 @@ describe("Glimmer comment nodes — parse + mutate + print", () => {
 
   it("comment nodes carry correct start/end positions matching source", () => {
     const source = `const X = <template><!-- my comment --></template>;`;
-    const ast = toTree(source, { includeParentLinks: false });
+    const ast = toTree(source, { includeParentLinks: false, keepCommentsInBody: true });
 
     let comment;
     walk(ast, null, {
