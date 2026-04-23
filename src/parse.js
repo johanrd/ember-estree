@@ -173,26 +173,34 @@ export function toTree(source, options = {}) {
   }
 
   result.ast = walk(result.ast, null, {
-    _(node, { next, visit, state }) {
-      if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
-        const parseResult = matchPlaceholder(node);
-        if (parseResult) {
-          const ast = processPlaceholder(parseResult);
-          // Zimmerframe treats a visitor that returns a node as having
-          // taken responsibility for the subtree — it splices the result
-          // in but does NOT descend into it. So when any handlers are
-          // configured we re-enter the walk manually via `visit()` to
-          // dispatch them across the Glimmer nodes. With no handlers the
-          // walk would be pure overhead, so just return the subtree.
-          return hasVisitors ? visit(ast, null) : ast;
-        }
-      }
-
+    _(node, { next, state }) {
       const path = {
         node,
         parent: state?.parentPath?.node ?? null,
         parentPath: state?.parentPath ?? null,
       };
+
+      if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
+        const parseResult = matchPlaceholder(node);
+        if (parseResult) {
+          const ast = processPlaceholder(parseResult);
+          // Walk the spliced Glimmer subtree ourselves instead of
+          // re-entering zimmerframe. Two reasons:
+          //   1. Glimmer nodes carry `parent` back-references by default.
+          //      zimmerframe's next() iterates `for (key in node)`, which
+          //      would follow `parent` and infinite-loop.
+          //   2. We want the Glimmer root to see the outer JS parent chain
+          //      via `state.parentPath` so consumers can walk up (e.g. to
+          //      find enclosing scopes). `visit(ast, null)` drops that
+          //      chain; passing state through zimmerframe also triggers
+          //      the property-iteration cycle described above.
+          // Using a visitor-keys-aware recursive walker avoids both.
+          if (hasVisitors) {
+            walkGlimmerSubtree(ast, path, visitors, seen);
+          }
+          return ast;
+        }
+      }
 
       if (hasVisitors && !seen.has(node)) {
         seen.add(node);
@@ -259,6 +267,56 @@ export function toTree(source, options = {}) {
 }
 
 export const parse = toTree;
+
+/**
+ * Visitor-keys-aware traversal for a spliced Glimmer subtree.
+ *
+ * We don't re-enter zimmerframe here because:
+ *   - Glimmer nodes carry `parent` back-references by default, and
+ *     zimmerframe's default descent iterates every own property
+ *     (`for (key in node)`), which would follow `parent` and recurse
+ *     infinitely.
+ *   - Zimmerframe's `visit(ast, null)` also drops user state, losing
+ *     the outer JS parent chain needed by consumers to walk up from
+ *     a Glimmer descendant to an enclosing JS scope.
+ *
+ * This walker follows only the declared Glimmer visitor keys, which
+ * mirrors the pre-visitors-API behavior and avoids both pitfalls.
+ *
+ * @param {object} node Current Glimmer node
+ * @param {object} parentPath Linked-list path of ancestors (user state)
+ * @param {object} visitors Resolved visitor map
+ * @param {WeakSet} seen Shared dedupe set (so a node isn't dispatched twice
+ *   if a visitor relocates it into a position the outer walker will revisit)
+ */
+function walkGlimmerSubtree(node, parentPath, visitors, seen) {
+  if (!node || typeof node !== "object" || typeof node.type !== "string") return;
+
+  const path = { node, parent: parentPath?.node ?? null, parentPath };
+
+  if (!seen.has(node)) {
+    seen.add(node);
+    const handler = visitors[node.type];
+    if (handler) handler(node, path);
+    if ("blockParams" in node && visitors.GlimmerBlockParams) {
+      visitors.GlimmerBlockParams(node, path);
+    }
+  }
+
+  const keys = glimmerVisitorKeys[node.type];
+  if (!keys) return;
+  for (const key of keys) {
+    const child = node[key];
+    if (!child) continue;
+    if (Array.isArray(child)) {
+      // Snapshot: a visitor may splice siblings mid-walk.
+      const copy = child.slice();
+      for (const item of copy) walkGlimmerSubtree(item, path, visitors, seen);
+    } else if (typeof child === "object" && typeof child.type === "string") {
+      walkGlimmerSubtree(child, path, visitors, seen);
+    }
+  }
+}
 
 // ── Placeholder JS ────────────────────────────────────────────────────
 
