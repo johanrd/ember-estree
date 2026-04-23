@@ -31,11 +31,6 @@ export interface ParseOptions {
   filePath?: string;
   templateOnly?: boolean;
   /**
-   * Include `parent` references on Glimmer AST nodes.
-   * Defaults to `true`. Set to `false` for JSON-serializable output.
-   */
-  includeParentLinks?: boolean;
-  /**
    * Custom JS/TS parser. Called with the placeholder JS string
    * (templates replaced with backtick expressions of equal length).
    * Must return at least `{ ast }`.

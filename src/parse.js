@@ -41,10 +41,8 @@ const PLACEHOLDER_TYPES = new Set([
  * @return {object}
  */
 export function toTree(source, options = {}) {
-  const templateOpts = options.includeParentLinks === false ? { includeParentLinks: false } : {};
-
   if (options.templateOnly) {
-    return processTemplate(source, new DocumentLines(source), [0, source.length], templateOpts);
+    return processTemplate(source, new DocumentLines(source), [0, source.length]);
   }
 
   let parseResults = preprocessor.parse(source);
@@ -117,7 +115,7 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast } = processTemplate(templateContent, codeLines, contentRange, templateOpts);
+    const { ast } = processTemplate(templateContent, codeLines, contentRange);
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;

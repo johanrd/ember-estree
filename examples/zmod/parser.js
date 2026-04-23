@@ -23,8 +23,7 @@ import { toTree, print } from "ember-estree";
  */
 export const emberParser = {
   parse(code) {
-    const ast = toTree(code, { includeParentLinks: false });
-    return ast;
+    return toTree(code);
   },
   print(node) {
     return print(node);

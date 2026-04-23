@@ -63,13 +63,12 @@ Both `toTree` and `parse` accept an options object as their second argument.
 
 All options are optional.
 
-| Option               | Type                                              | Description                                                                                                         |
-| -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `filePath`           | `string`                                          | Used for language detection.                                                                                        |
-| `templateOnly`       | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                   |
-| `includeParentLinks` | `boolean`                                         | Include `parent` back-references on Glimmer nodes. Defaults to `true`; set to `false` for JSON-serializable output. |
-| `parser`             | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                   |
-| `visitors`           | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors).   |
+| Option         | Type                                              | Description                                                                                                       |
+| -------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `filePath`     | `string`                                          | Used for language detection.                                                                                      |
+| `templateOnly` | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                 |
+| `parser`       | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                 |
+| `visitors`     | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors). |
 
 Handler signature is `(node, path) => void`, where `path = { node, parent, parentPath }` — a linked list walking back to the root.
 
