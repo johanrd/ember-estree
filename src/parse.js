@@ -33,21 +33,22 @@ const PLACEHOLDER_TYPES = new Set([
  * @param {string}  [options.filePath] - File path for language detection
  * @param {boolean} [options.templateOnly] - Parse as raw Glimmer template content (for .hbs)
  * @param {function} [options.parser] - Custom JS/TS parser: (placeholderJS) => { ast, scopeManager?, visitorKeys?, services?, ... }
- * @param {object}  [options.visitors] - Callbacks invoked for Glimmer nodes during traversal
+ * @param {object|function} [options.visitors] - Either a map of `{ [Type]: (node, path) => void }`
+ *   handlers, or a factory `(outerAst) => handlers` invoked once after parsing (before any
+ *   template splicing) to give callers a view of the raw JS/TS tree. Handlers fire on every
+ *   node during traversal — outer JS/TS nodes AND spliced Glimmer subtrees — in a single pass.
+ *   The pseudo-type `GlimmerBlockParams` fires on any node that carries `blockParams`.
  * @return {object}
  */
 export function toTree(source, options = {}) {
-  const templateOpts = options.includeParentLinks === false ? { includeParentLinks: false } : {};
-
   if (options.templateOnly) {
-    return processTemplate(source, new DocumentLines(source), [0, source.length], templateOpts);
+    return processTemplate(source, new DocumentLines(source), [0, source.length]);
   }
 
   let parseResults = preprocessor.parse(source);
   let js = toPlaceholderJS(source, parseResults);
 
   const useCustomParser = !!options.parser;
-  const visitors = options.visitors || null;
 
   // Parse the placeholder JS — use custom parser or default oxc
   let result;
@@ -73,8 +74,24 @@ export function toTree(source, options = {}) {
     };
   }
 
-  // If no templates, return early
-  if (!parseResults.length) {
+  // Resolve user visitors against the outer AST. A plain object is used
+  // as-is; a factory is called once so callers can introspect the raw
+  // JS/TS tree before any template splicing. Default to `{}` so downstream
+  // dispatch can be a bare `visitors[type]` lookup without null-guards.
+  const visitors =
+    typeof options.visitors === "function"
+      ? (options.visitors(result.ast) ?? {})
+      : (options.visitors ?? {});
+  const hasVisitors = Object.keys(visitors).length > 0;
+  // Guard against dispatching a handler twice on the same node.
+  // Visitors that relocate nodes (e.g. moving Glimmer comments into
+  // `program.comments`) would otherwise fire a second time when the walk
+  // reaches the new location.
+  const seen = new WeakSet();
+  const hasTemplates = parseResults.length > 0;
+
+  // Nothing to walk — attach visitor keys and return.
+  if (!hasTemplates && !hasVisitors) {
     if (useCustomParser) {
       result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
       return result;
@@ -83,11 +100,11 @@ export function toTree(source, options = {}) {
     return result.ast;
   }
 
-  const codeLines = new DocumentLines(source);
+  const codeLines = hasTemplates ? new DocumentLines(source) : null;
   const templateInfos = [];
-
-  // Build a map of template ranges for lookup
-  const templateRangeByStart = new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]));
+  const templateRangeByStart = hasTemplates
+    ? new Map(parseResults.map((r) => [r.range.startUtf16Codepoint, r]))
+    : null;
 
   // Process a matched placeholder node: create Glimmer AST and tokens
   function processPlaceholder(parseResult) {
@@ -98,7 +115,7 @@ export function toTree(source, options = {}) {
     ];
     let fullRange = [parseResult.range.startUtf16Codepoint, parseResult.range.endUtf16Codepoint];
 
-    const { ast } = processTemplate(templateContent, codeLines, contentRange, templateOpts);
+    const { ast } = processTemplate(templateContent, codeLines, contentRange);
 
     // Fix the Template root to cover the full <template>...</template> range
     ast.range = fullRange;
@@ -155,34 +172,55 @@ export function toTree(source, options = {}) {
 
   result.ast = walk(result.ast, null, {
     _(node, { next, visit, state }) {
-      if (PLACEHOLDER_TYPES.has(node.type)) {
+      if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
           const ast = processPlaceholder(parseResult);
-          return visitors ? visit(ast, null) : ast;
+          // Zimmerframe treats a visitor that returns a node as having
+          // taken responsibility for the subtree — it splices the result
+          // in but does NOT descend into it. So when any handlers are
+          // configured we re-enter the walk manually via `visit()` to
+          // dispatch them across the Glimmer nodes. With no handlers the
+          // walk would be pure overhead, so just return the subtree.
+          return hasVisitors ? visit(ast, null) : ast;
         }
       }
 
-      if (visitors && node.type.startsWith("Glimmer")) {
-        const path = {
-          node,
-          parent: state?.parentPath?.node ?? null,
-          parentPath: state?.parentPath ?? null,
-        };
+      const path = {
+        node,
+        parent: state?.parentPath?.node ?? null,
+        parentPath: state?.parentPath ?? null,
+      };
+
+      if (hasVisitors && !seen.has(node)) {
+        seen.add(node);
         const handler = visitors[node.type];
         if (handler) handler(node, path);
         if ("blockParams" in node && visitors.GlimmerBlockParams) {
           visitors.GlimmerBlockParams(node, path);
         }
-        next({ parentPath: path });
-        return;
       }
 
-      next();
+      next({ parentPath: path });
     },
   });
 
   // Splice template tokens into the AST token stream.
+  //
+  // `tokens` is the flat lexed stream (keywords, punctuators, identifiers,
+  // literals) that ESLint, formatters, and source-map tooling consume —
+  // `SourceCode.getTokens()` reads it directly.
+  //
+  // We replaced each <template>...</template> region with a backtick
+  // placeholder before handing the source to the JS/TS parser, so the
+  // parser's tokens for those ranges describe the placeholder, not the
+  // real source. Here we swap them out for the real lexemes:
+  //   1. a fabricated `<template>` Punctuator (added in processPlaceholder)
+  //   2. the Glimmer AST's own tokens (from transforms.js)
+  //   3. a fabricated `</template>` Punctuator
+  // so consumers see a position-accurate token stream matching the
+  // original source byte-for-byte across JS and Glimmer regions.
+  //
   // Tokens are sorted by range, so use binary search for O(log n) lookup.
   const astRoot = result.ast.program || result.ast;
   if (astRoot.tokens) {

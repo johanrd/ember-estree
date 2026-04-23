@@ -57,6 +57,109 @@ print({
 // => "<template>Hello</template>"
 ```
 
+## Options
+
+Both `toTree` and `parse` accept an options object as their second argument.
+
+All options are optional.
+
+| Option         | Type                                              | Description                                                                                                       |
+| -------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `filePath`     | `string`                                          | Used for language detection.                                                                                      |
+| `templateOnly` | `boolean`                                         | Parse the source as a raw Glimmer template. Use for `.hbs` files.                                                 |
+| `parser`       | `(placeholderJS: string) => { ast, ... }`         | Use a custom JS/TS parser instead of the default oxc-parser. See [Custom parser](#custom-parser).                 |
+| `visitors`     | `VisitorMap` <br /> or `(outerAst) => VisitorMap` | Callbacks fired on every node during traversal — JS/TS and Glimmer — in a single pass. See [Visitors](#visitors). |
+
+Handler signature is `(node, path) => void`, where `path = { node, parent, parentPath }` — a linked list walking back to the root.
+
+### Custom parser
+
+Pass any JS/TS parser that returns an ESTree-compatible AST. ember-estree handles template splicing and Glimmer traversal on top of it.
+
+```js
+import { parseSync } from "oxc-parser";
+import { toTree } from "ember-estree";
+
+const result = toTree(source, {
+  parser: (js) => ({
+    ast: parseSync("input.ts", js).program,
+    visitorKeys: {
+      /* ...parser's visitor keys... */
+    },
+  }),
+});
+```
+
+The parser receives a placeholder-JS string (templates replaced with backtick expressions of equal length) and must return at least `{ ast }`. Additional fields like `scopeManager`, `visitorKeys`, or `services` are preserved on the returned result.
+
+### Visitors
+
+Pass `visitors` to observe or rewrite the tree in a single traversal. Handlers fire on both outer JS/TS nodes and spliced Glimmer subtrees, and a single node is never dispatched twice — safe to relocate nodes mid-walk.
+
+The pseudo-type `GlimmerBlockParams` fires on any node that carries a `blockParams` array.
+
+**Plain-object form** — use when you only need the type → handler map:
+
+```js
+import { toTree } from "ember-estree";
+
+const identifiers = [];
+toTree(source, {
+  visitors: {
+    Identifier: (node) => identifiers.push(node.name),
+    GlimmerPathExpression: (node) => identifiers.push(node.original),
+  },
+});
+```
+
+**Factory form** — use when you need the outer JS/TS AST up front (for example, to attach state to it before the walk):
+
+```js
+import { toTree, print } from "ember-estree";
+
+const ast = toTree(`const world = "🌍"; const X = <template>{{world}}</template>;`, {
+  visitors: () => ({
+    Identifier: (node) => (node.name = node.name.toUpperCase()),
+    GlimmerPathExpression(node) {
+      node.original = node.original.toUpperCase();
+      if (node.head) node.head.name = node.original;
+    },
+  }),
+});
+
+print(ast.program);
+// => 'const WORLD = "🌍";\nconst X = <template>{{WORLD}}</template>;'
+```
+
+**Collecting Glimmer comments into `program.comments`** — useful when adapting the AST for ESLint, which reads comments from the Program node:
+
+```js
+const ast = toTree(source, {
+  visitors: (outerAst) => {
+    outerAst.program.comments = [...(outerAst.comments ?? [])];
+    const push = (node) => outerAst.program.comments.push(node);
+    return {
+      GlimmerCommentStatement: push,
+      GlimmerMustacheCommentStatement: push,
+    };
+  },
+});
+```
+
+**Removing nodes mid-traversal** — siblings are splice-safe:
+
+```js
+toTree(source, {
+  visitors: () => ({
+    GlimmerMustacheCommentStatement(node, path) {
+      const siblings = path.parent?.body ?? path.parent?.children;
+      const idx = siblings?.indexOf(node) ?? -1;
+      if (idx >= 0) siblings.splice(idx, 1);
+    },
+  }),
+});
+```
+
 ## Examples
 
 The [`examples/`](./examples) directory contains ready-to-run integrations:

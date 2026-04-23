@@ -48,36 +48,14 @@ describe("parse", () => {
     checkStartEnd(ast);
   });
 
-  it("includeParentLinks: false produces AST without parent references", () => {
-    const source = `const x = <template><h1>Hello</h1></template>;`;
-    const ast = parse(source, { includeParentLinks: false });
-
-    function checkNoParent(node, visited = new Set()) {
-      if (!node || typeof node !== "object" || visited.has(node)) return;
-      visited.add(node);
-      if (node.type) {
-        expect("parent" in node).toBe(false);
-      }
-      for (const key of Object.keys(node)) {
-        if (key === "loc") continue;
-        const val = node[key];
-        if (Array.isArray(val)) {
-          for (const item of val) {
-            checkNoParent(item, visited);
-          }
-        } else if (val && typeof val === "object" && val.type) {
-          checkNoParent(val, visited);
-        }
-      }
-    }
-    checkNoParent(ast);
-  });
-
-  it("includeParentLinks defaults to true", () => {
+  it("parent links are present on Glimmer nodes but non-enumerable", () => {
     const source = `const x = <template><h1>Hello</h1></template>;`;
     const ast = parse(source);
     const h1 = findNode(ast, "GlimmerElementNode");
     expect(h1.parent).toBeDefined();
+    // Non-enumerable so JSON, Object.keys, and snapshots skip the cycle.
+    expect(Object.prototype.propertyIsEnumerable.call(h1, "parent")).toBe(false);
+    expect(() => JSON.stringify(ast)).not.toThrow();
   });
 
   it("parses Glimmer template nodes into the AST", () => {

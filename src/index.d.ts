@@ -31,25 +31,29 @@ export interface ParseOptions {
   filePath?: string;
   templateOnly?: boolean;
   /**
-   * Include `parent` references on Glimmer AST nodes.
-   * Defaults to `true`. Set to `false` for JSON-serializable output.
-   */
-  includeParentLinks?: boolean;
-  /**
    * Custom JS/TS parser. Called with the placeholder JS string
    * (templates replaced with backtick expressions of equal length).
    * Must return at least `{ ast }`.
    */
   parser?: (placeholderJS: string) => { ast: ASTNode; [key: string]: unknown };
   /**
-   * Callbacks invoked for Glimmer nodes during the AST splice traversal.
-   * Runs in DFS order, so parent nodes are visited before children.
+   * Callbacks fired on each node during traversal — outer JS/TS nodes AND
+   * spliced Glimmer subtrees — so callers can gather information or mutate
+   * the tree in a single pass.
+   *
+   * Pass either a plain handler map, or a factory `(outerAst) => handlers`
+   * that's called once after parsing (before template splicing) when you
+   * need a view of the raw JS/TS tree up front.
+   *
+   * The pseudo-type `GlimmerBlockParams` fires on any node that carries
+   * a `blockParams` array.
    */
-  visitors?: {
-    [glimmerNodeType: string]: (node: ASTNode, path: VisitorPath) => void;
-    GlimmerBlockParams?: (node: ASTNode, path: VisitorPath) => void;
-  };
+  visitors?: VisitorMap | ((outerAst: ASTNode) => VisitorMap | null | undefined);
 }
+
+export type VisitorMap = {
+  [nodeType: string]: (node: ASTNode, path: VisitorPath) => void;
+};
 
 export class DocumentLines {
   constructor(source: string);

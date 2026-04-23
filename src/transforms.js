@@ -173,12 +173,7 @@ function buildTokenStream(rawTokens, comments, textNodes) {
  * positions, create parts/blockParamNodes, nullify empty hashes, and
  * prefix types. No separate collect-then-transform loop.
  */
-export function processTemplate(
-  templateContent,
-  codeLines,
-  templateRange,
-  { includeParentLinks = true } = {},
-) {
+export function processTemplate(templateContent, codeLines, templateRange) {
   const offset = templateRange[0];
   const docLines = offset === 0 ? codeLines : new DocumentLines(templateContent);
 
@@ -192,7 +187,6 @@ export function processTemplate(
   });
 
   const ast = glimmerPreprocess(templateContent, { mode: "codemod" });
-  const allNodes = [];
   const comments = [];
   const textNodes = [];
   const emptyTextNodes = [];
@@ -203,7 +197,6 @@ export function processTemplate(
   // AFTER recursing (so children see the original type during lookup).
   function visit(n, parent) {
     setParent(n, parent);
-    allNodes.push(n);
 
     // Categorize
     if (n.type === "CommentStatement" || n.type === "MustacheCommentStatement") {
@@ -344,14 +337,6 @@ export function processTemplate(
 
   ast.tokens = buildTokenStream(tokenize(templateContent, codeLines, offset), comments, textNodes);
   ast.contents = templateContent;
-
-  if (!includeParentLinks) {
-    for (const n of allNodes) {
-      delete n.parent;
-      if (n.parts) for (const p of n.parts) delete p.parent;
-      if (n.blockParamNodes) for (const p of n.blockParamNodes) delete p.parent;
-    }
-  }
 
   return { ast, comments };
 }
