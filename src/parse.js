@@ -78,20 +78,22 @@ export function toTree(source, options = {}) {
 
   // Resolve user visitors against the outer AST. A plain object is used
   // as-is; a factory is called once so callers can introspect the raw
-  // JS/TS tree before any template splicing.
+  // JS/TS tree before any template splicing. Default to `{}` so downstream
+  // dispatch can be a bare `visitors[type]` lookup without null-guards.
   const visitors =
     typeof options.visitors === "function"
-      ? (options.visitors(result.ast) ?? null)
-      : (options.visitors ?? null);
+      ? (options.visitors(result.ast) ?? {})
+      : (options.visitors ?? {});
+  const hasVisitors = Object.keys(visitors).length > 0;
   // Guard against dispatching a handler twice on the same node.
   // Visitors that relocate nodes (e.g. moving Glimmer comments into
   // `program.comments`) would otherwise fire a second time when the walk
   // reaches the new location.
-  const seen = visitors ? new WeakSet() : null;
+  const seen = hasVisitors ? new WeakSet() : null;
   const hasTemplates = parseResults.length > 0;
 
   // Nothing to walk — attach visitor keys and return.
-  if (!hasTemplates && !visitors) {
+  if (!hasTemplates && !hasVisitors) {
     if (useCustomParser) {
       result.visitorKeys = { ...result.visitorKeys, ...glimmerVisitorKeys };
       return result;
@@ -175,10 +177,14 @@ export function toTree(source, options = {}) {
       if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
-          // Re-enter the walk on the spliced Glimmer subtree so visitors
-          // fire on its nodes too — zimmerframe doesn't descend into a
-          // replacement returned from a visitor.
-          return visit(processPlaceholder(parseResult), null);
+          const ast = processPlaceholder(parseResult);
+          // Zimmerframe treats a visitor that returns a node as having
+          // taken responsibility for the subtree — it splices the result
+          // in but does NOT descend into it. So when any handlers are
+          // configured we re-enter the walk manually via `visit()` to
+          // dispatch them across the Glimmer nodes. With no handlers the
+          // walk would be pure overhead, so just return the subtree.
+          return hasVisitors ? visit(ast, null) : ast;
         }
       }
 
@@ -188,7 +194,7 @@ export function toTree(source, options = {}) {
         parentPath: state?.parentPath ?? null,
       };
 
-      if (visitors && !seen.has(node)) {
+      if (hasVisitors && !seen.has(node)) {
         seen.add(node);
         const handler = visitors[node.type];
         if (handler) handler(node, path);
