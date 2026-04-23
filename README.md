@@ -61,6 +61,8 @@ print({
 
 Both `toTree` and `parse` accept an options object as their second argument.
 
+All options are optional.
+
 | Option               | Type                                             | Description                                                                                                                                                            |
 | -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `filePath`           | `string`                                         | Used for language detection.                                                                                                                                           |
