@@ -175,11 +175,10 @@ export function toTree(source, options = {}) {
       if (hasTemplates && PLACEHOLDER_TYPES.has(node.type)) {
         const parseResult = matchPlaceholder(node);
         if (parseResult) {
-          const ast = processPlaceholder(parseResult);
           // Re-enter the walk on the spliced Glimmer subtree so visitors
-          // run there too. If none are configured the subtree is spliced
-          // in as-is.
-          return visitors ? visit(ast, null) : ast;
+          // fire on its nodes too — zimmerframe doesn't descend into a
+          // replacement returned from a visitor.
+          return visit(processPlaceholder(parseResult), null);
         }
       }
 
