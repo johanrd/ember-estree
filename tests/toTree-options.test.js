@@ -226,6 +226,67 @@ describe("toTree — visitors", () => {
     expect(params).toContain("item");
   });
 
+  it("visitor path chain reaches JS ancestors — standalone template", () => {
+    const source = `const x = <template>{{name}}</template>;`;
+    let templatePath = null;
+    toTree(source, {
+      parser: oxcParse,
+      visitors: {
+        GlimmerTemplate(node, path) {
+          templatePath = path;
+        },
+      },
+    });
+
+    const chain = [];
+    let p = templatePath;
+    while (p) {
+      chain.push(p.node.type);
+      p = p.parentPath;
+    }
+
+    expect(chain).toMatchInlineSnapshot(`
+      [
+        "GlimmerTemplate",
+        "VariableDeclarator",
+        "VariableDeclaration",
+        "Program",
+      ]
+    `);
+  });
+
+  it("visitor path chain reaches JS ancestors — class-backed component", () => {
+    const source = `export default class MyComponent extends Component {
+  <template>{{name}}</template>
+}`;
+    let templatePath = null;
+    toTree(source, {
+      parser: oxcParse,
+      visitors: {
+        GlimmerTemplate(node, path) {
+          templatePath = path;
+        },
+      },
+    });
+
+    const chain = [];
+    let p = templatePath;
+    while (p) {
+      chain.push(p.node.type);
+      p = p.parentPath;
+    }
+
+    expect(chain).toMatchInlineSnapshot(`
+      [
+        "GlimmerTemplate",
+        "ClassBody",
+        "ClassDeclaration",
+        "ExportDefaultDeclaration",
+        "Program",
+      ]
+    `);
+  });
+
   it("visitors receive DFS order (parent before child)", () => {
     const source = `const x = <template>{{#each items as |item|}}<div>{{item}}</div>{{/each}}</template>;`;
     const order = [];
